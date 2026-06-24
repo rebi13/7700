@@ -21,6 +21,7 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "7700",
     "plugins": [
       "expo-router"
     ]
