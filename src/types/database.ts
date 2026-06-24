@@ -271,56 +271,82 @@ export interface HealthWorkoutSyncLogInsert {
   synced_at?: string
 }
 
-// ─── Database convenience type ────────────────────────────────────────────────
+// ─── Database type (supabase-js v2 GenericDatabase format) ───────────────────
+// interface 타입은 conditional type에서 Record<string, unknown>을 satisfy하지
+// 못하므로, & { [key: string]: unknown } 교차 타입으로 index signature를 추가한다.
 
-export interface Database {
+type WithIndex<T> = T & { [key: string]: unknown }
+type NoUpdate = { [key: string]: never }
+
+export type Database = {
   public: {
     Tables: {
       profiles: {
-        Row: ProfileRow
-        Insert: ProfileInsert
-        Update: ProfileUpdate
+        Row: WithIndex<ProfileRow>
+        Insert: WithIndex<ProfileInsert>
+        Update: WithIndex<ProfileUpdate>
+        Relationships: []
       }
       goals: {
-        Row: GoalRow
-        Insert: GoalInsert
-        Update: GoalUpdate
+        Row: WithIndex<GoalRow>
+        Insert: WithIndex<GoalInsert>
+        Update: WithIndex<GoalUpdate>
+        Relationships: []
       }
       meal_logs: {
-        Row: MealLogRow
-        Insert: MealLogInsert
-        Update: MealLogUpdate
+        Row: WithIndex<MealLogRow>
+        Insert: WithIndex<MealLogInsert>
+        Update: WithIndex<MealLogUpdate>
+        Relationships: []
       }
       exercise_logs: {
-        Row: ExerciseLogRow
-        Insert: ExerciseLogInsert
-        Update: ExerciseLogUpdate
+        Row: WithIndex<ExerciseLogRow>
+        Insert: WithIndex<ExerciseLogInsert>
+        Update: WithIndex<ExerciseLogUpdate>
+        Relationships: []
       }
       weight_logs: {
-        Row: WeightLogRow
-        Insert: WeightLogInsert
-        Update: WeightLogUpdate
+        Row: WithIndex<WeightLogRow>
+        Insert: WithIndex<WeightLogInsert>
+        Update: WithIndex<WeightLogUpdate>
+        Relationships: []
       }
       daily_summaries: {
-        Row: DailySummaryRow
-        Insert: DailySummaryInsert
-        Update: DailySummaryUpdate
+        Row: WithIndex<DailySummaryRow>
+        Insert: WithIndex<DailySummaryInsert>
+        Update: WithIndex<DailySummaryUpdate>
+        Relationships: []
       }
       llm_parse_logs: {
-        Row: LlmParseLogRow
-        Insert: LlmParseLogInsert
-        Update: undefined
+        Row: WithIndex<LlmParseLogRow>
+        Insert: WithIndex<LlmParseLogInsert>
+        Update: NoUpdate
+        Relationships: []
       }
       llm_feedbacks: {
-        Row: LlmFeedbackRow
-        Insert: LlmFeedbackInsert
-        Update: undefined
+        Row: WithIndex<LlmFeedbackRow>
+        Insert: WithIndex<LlmFeedbackInsert>
+        Update: NoUpdate
+        Relationships: []
       }
       health_workout_sync_logs: {
-        Row: HealthWorkoutSyncLogRow
-        Insert: HealthWorkoutSyncLogInsert
-        Update: undefined
+        Row: WithIndex<HealthWorkoutSyncLogRow>
+        Insert: WithIndex<HealthWorkoutSyncLogInsert>
+        Update: NoUpdate
+        Relationships: []
       }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }

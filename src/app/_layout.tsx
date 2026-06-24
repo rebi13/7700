@@ -36,7 +36,7 @@ function AuthGuard() {
     } else if (!profile) {
       if (!inOnboardingGroup) router.replace('/(onboarding)')
     } else if (!activeGoal) {
-      const inGoalScreen = inOnboardingGroup && segments[1] === 'goal'
+      const inGoalScreen = inOnboardingGroup && (segments as string[])[1] === 'goal'
       if (!inGoalScreen) router.replace('/(onboarding)/goal')
     } else {
       if (inAuthGroup || inOnboardingGroup) router.replace('/(tabs)')

@@ -133,7 +133,7 @@ export default function GoalScreen() {
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryKey}>하루 필요 적자</Text>
-              <Text style={[styles.summaryVal, dailyDeficit && dailyDeficit > 1000 && styles.summaryWarn]}>
+              <Text style={[styles.summaryVal, dailyDeficit !== null && dailyDeficit > 1000 && styles.summaryWarn]}>
                 {dailyDeficit !== null ? `${dailyDeficit} kcal` : '-'}
               </Text>
             </View>
