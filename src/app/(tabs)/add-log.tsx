@@ -19,6 +19,7 @@ import { weightSchema, type WeightFormData } from '@/schemas/weight'
 import { useMealStore } from '@/stores/mealStore'
 import { useExerciseStore } from '@/stores/exerciseStore'
 import { useWeightStore } from '@/stores/weightStore'
+import { useSummaryStore } from '@/stores/summaryStore'
 import { todayISO } from '@/utils/date'
 import type { MealType, MeasuredTiming } from '@/types/database'
 
@@ -61,6 +62,7 @@ function MealForm({ date }: { date: string }) {
     await addLog({ ...data, meal_date: date })
     const store = useMealStore.getState()
     if (!store.error) {
+      await useSummaryStore.getState().calculateAndSave(date)
       reset({ meal_date: date, meal_type: undefined })
       Alert.alert('저장 완료', '식사 기록이 저장되었습니다.')
     } else {
@@ -221,6 +223,7 @@ function ExerciseForm({ date }: { date: string }) {
     await addLog({ ...data, exercise_date: date })
     const store = useExerciseStore.getState()
     if (!store.error) {
+      await useSummaryStore.getState().calculateAndSave(date)
       reset({ exercise_date: date })
       Alert.alert('저장 완료', '운동 기록이 저장되었습니다.')
     } else {
