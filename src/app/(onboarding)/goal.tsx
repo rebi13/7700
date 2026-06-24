@@ -10,7 +10,6 @@ import {
 } from 'react-native'
 import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'expo-router'
 import { goalSchema, type GoalFormData } from '@/schemas/onboarding'
 import { useGoalStore } from '@/stores/goalStore'
 import { useProfileStore } from '@/stores/profileStore'
@@ -18,7 +17,6 @@ import { calculateDailyDeficit, calculateTDEE, calculateBMR } from '@/utils/calc
 import { getDaysRemaining, todayISO } from '@/utils/date'
 
 export default function GoalScreen() {
-  const router = useRouter()
   const { createGoal, isLoading, error } = useGoalStore()
   const { profile, tdee } = useProfileStore()
 
@@ -62,9 +60,6 @@ export default function GoalScreen() {
       start_date: todayISO(),
       target_date: data.targetDate,
     })
-    if (!useGoalStore.getState().error) {
-      router.replace('/(tabs)')
-    }
   }
 
   return (

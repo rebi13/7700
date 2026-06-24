@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/authStore'
 
 interface GoalState {
   activeGoal: GoalRow | null
+  goalChecked: boolean
   daysRemaining: number | null
   dailyDeficit: number | null
   isLoading: boolean
@@ -29,6 +30,7 @@ function computeGoalMetrics(goal: GoalRow) {
 
 export const useGoalStore = create<GoalState>((set, get) => ({
   activeGoal: null,
+  goalChecked: false,
   daysRemaining: null,
   dailyDeficit: null,
   isLoading: false,
@@ -49,11 +51,11 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       .single()
 
     if (error || !data) {
-      set({ activeGoal: null, daysRemaining: null, dailyDeficit: null, isLoading: false })
+      set({ activeGoal: null, goalChecked: true, daysRemaining: null, dailyDeficit: null, isLoading: false })
       return
     }
 
-    set({ activeGoal: data, ...computeGoalMetrics(data), isLoading: false })
+    set({ activeGoal: data, goalChecked: true, ...computeGoalMetrics(data), isLoading: false })
   },
 
   createGoal: async (data) => {
@@ -79,7 +81,7 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       return
     }
 
-    set({ activeGoal: created, ...computeGoalMetrics(created), isLoading: false })
+    set({ activeGoal: created, goalChecked: true, ...computeGoalMetrics(created), isLoading: false })
   },
 
   updateGoal: async (data) => {

@@ -10,7 +10,6 @@ import {
 } from 'react-native'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'expo-router'
 import { profileSchema, type ProfileFormData } from '@/schemas/onboarding'
 import { useProfileStore } from '@/stores/profileStore'
 import type { Gender, ActivityLevel } from '@/types/database'
@@ -30,7 +29,6 @@ const ACTIVITY_OPTIONS: { value: ActivityLevel; label: string; desc: string }[] 
 ]
 
 export default function ProfileScreen() {
-  const router = useRouter()
   const { createProfile, isLoading, error } = useProfileStore()
 
   const {
@@ -49,9 +47,6 @@ export default function ProfileScreen() {
       gender: data.gender,
       activity_level: data.activityLevel,
     })
-    if (!useProfileStore.getState().error) {
-      router.push('/(onboarding)/goal')
-    }
   }
 
   return (
