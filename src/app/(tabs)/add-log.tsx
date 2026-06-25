@@ -24,7 +24,24 @@ import { useSummaryStore } from '@/stores/summaryStore'
 import { useAiStore } from '@/stores/aiStore'
 import type { EstimateResult } from '@/stores/aiStore'
 import { todayISO } from '@/utils/date'
+import { useHealthStore } from '@/stores/healthStore'
 import type { MealType, MeasuredTiming } from '@/types/database'
+
+function formatLastSync(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000)
+  if (diffMin < 1) return '방금 동기화함'
+  if (diffMin < 60) return `${diffMin}분 전 동기화`
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const day = new Date(d); day.setHours(0, 0, 0, 0)
+  const dayDiff = Math.round((today.getTime() - day.getTime()) / 86400000)
+  const h = d.getHours(); const m = String(d.getMinutes()).padStart(2, '0')
+  const ampm = h < 12 ? '오전' : '오후'; const h12 = h % 12 || 12
+  if (dayDiff === 0) return `오늘 ${ampm} ${h12}:${m} 동기화`
+  if (dayDiff === 1) return `어제 ${ampm} ${h12}:${m} 동기화`
+  return `${dayDiff}일 전 동기화`
+}
 
 type TabType = 'meal' | 'exercise' | 'weight'
 
@@ -473,6 +490,20 @@ function WeightForm({ date }: { date: string }) {
 export default function AddLogScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('meal')
   const [selectedDate, setSelectedDate] = useState(todayISO())
+  const { isSyncing, lastSyncedAt, requestPermissions, syncAll } = useHealthStore()
+
+  const handleHealthSync = useCallback(async () => {
+    const granted = await requestPermissions()
+    if (!granted) {
+      Alert.alert('권한 필요', '설정 > 건강에서 7700에 대한 권한을 허용해 주세요.')
+      return
+    }
+    const result = await syncAll()
+    Alert.alert(
+      '동기화 완료',
+      `운동 ${result.workouts}건, 체중 ${result.weights}건을 가져왔습니다.`
+    )
+  }, [requestPermissions, syncAll])
 
   const selectedDateObj = useMemo(() => {
     const [y, m, d] = selectedDate.split('-').map(Number)
@@ -508,6 +539,23 @@ export default function AddLogScreen() {
       >
         <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
           <Text style={s.title}>기록 추가</Text>
+
+          {Platform.OS === 'ios' && (
+            <View style={s.healthSection}>
+              <TouchableOpacity
+                style={[s.healthBtn, isSyncing && s.btnDisabled]}
+                onPress={handleHealthSync}
+                disabled={isSyncing}
+              >
+                <Text style={s.healthBtnText}>
+                  {isSyncing ? '동기화 중...' : '🍎 Apple Health 동기화'}
+                </Text>
+              </TouchableOpacity>
+              {lastSyncedAt && (
+                <Text style={s.healthSyncTime}>{formatLastSync(lastSyncedAt)}</Text>
+              )}
+            </View>
+          )}
 
           <Text style={s.label}>날짜</Text>
           <View style={s.dateWrapper}>
@@ -628,6 +676,19 @@ const s = StyleSheet.create({
   },
   aiNoteConfidence: { fontSize: 12, fontWeight: '700', marginBottom: 2 },
   aiNoteText: { fontSize: 12, color: '#555' },
+
+  healthSection: {
+    marginBottom: 16,
+    gap: 6,
+  },
+  healthBtn: {
+    backgroundColor: '#1c1c1e',
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  healthBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  healthSyncTime: { fontSize: 12, color: '#888', textAlign: 'center' },
 
   submitBtn: {
     backgroundColor: '#3b82f6',
