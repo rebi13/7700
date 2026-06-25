@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { estimateWeightChange } from '@/utils/calculations'
+import { todayISO } from '@/utils/date'
 import type { DailySummaryRow } from '@/types/database'
 
 interface SummaryState {
@@ -89,6 +90,11 @@ export const useSummaryStore = create<SummaryState>((set) => ({
       set({ error: error.message, isLoading: false })
       return
     }
-    set({ todaySummary: saved, isLoading: false })
+    // 오늘 날짜를 계산한 경우에만 todaySummary를 업데이트
+    if (date === todayISO()) {
+      set({ todaySummary: saved, isLoading: false })
+    } else {
+      set({ isLoading: false })
+    }
   },
 }))

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -415,6 +416,22 @@ export default function AddLogScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('meal')
   const [selectedDate, setSelectedDate] = useState(todayISO())
 
+  const selectedDateObj = useMemo(() => {
+    const [y, m, d] = selectedDate.split('-').map(Number)
+    return new Date(y, m - 1, d)
+  }, [selectedDate])
+
+  const handleDateChange = useCallback((_event: DateTimePickerEvent, picked?: Date) => {
+    if (picked) {
+      const iso = [
+        picked.getFullYear(),
+        String(picked.getMonth() + 1).padStart(2, '0'),
+        String(picked.getDate()).padStart(2, '0'),
+      ].join('-')
+      setSelectedDate(iso)
+    }
+  }, [])
+
   const handleTabChange = useCallback((tab: TabType) => {
     setActiveTab(tab)
   }, [])
@@ -435,14 +452,16 @@ export default function AddLogScreen() {
           <Text style={s.title}>기록 추가</Text>
 
           <Text style={s.label}>날짜</Text>
-          <TextInput
-            style={s.input}
-            value={selectedDate}
-            onChangeText={setSelectedDate}
-            placeholder="YYYY-MM-DD"
-            keyboardType="numbers-and-punctuation"
-            maxLength={10}
-          />
+          <View style={s.dateWrapper}>
+            <DateTimePicker
+              value={selectedDateObj}
+              mode="date"
+              display="compact"
+              maximumDate={new Date()}
+              onChange={handleDateChange}
+              locale="ko-KR"
+            />
+          </View>
 
           <View style={s.tabRow}>
             {TABS.map((t) => (
@@ -476,6 +495,17 @@ const s = StyleSheet.create({
   title: { fontSize: 22, fontWeight: '700', color: '#111', marginBottom: 20 },
 
   label: { fontSize: 14, fontWeight: '600', color: '#555', marginBottom: 6, marginTop: 14 },
+
+  dateWrapper: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fafafa',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    alignItems: 'flex-start',
+  },
+
   input: {
     borderWidth: 1,
     borderColor: '#ddd',

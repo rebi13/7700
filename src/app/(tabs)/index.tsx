@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import {
   View,
   Text,
@@ -8,13 +8,12 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useGoalStore } from '@/stores/goalStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { todayISO, formatDate } from '@/utils/date'
-
-const TODAY = todayISO()
 
 export default function HomeScreen() {
   const { user } = useAuthStore()
@@ -22,13 +21,17 @@ export default function HomeScreen() {
   const { activeGoal, daysRemaining, dailyDeficit } = useGoalStore()
   const { todaySummary, isLoading, calculateAndSave } = useSummaryStore()
 
-  const refresh = useCallback(async () => {
-    await calculateAndSave(TODAY)
-  }, [calculateAndSave])
+  const today = todayISO()
 
-  useEffect(() => {
-    calculateAndSave(TODAY)
-  }, [calculateAndSave])
+  useFocusEffect(
+    useCallback(() => {
+      calculateAndSave(today)
+    }, [calculateAndSave, today])
+  )
+
+  const refresh = useCallback(async () => {
+    await calculateAndSave(today)
+  }, [calculateAndSave, today])
 
   const intake = todaySummary?.total_intake_calories ?? 0
   const exercise = todaySummary?.total_exercise_calories ?? 0
@@ -54,7 +57,7 @@ export default function HomeScreen() {
             <Text style={s.greeting}>안녕하세요 👋</Text>
             <Text style={s.email}>{user?.email}</Text>
           </View>
-          <Text style={s.date}>{formatDate(TODAY)}</Text>
+          <Text style={s.date}>{formatDate(today)}</Text>
         </View>
 
         {isLoading && (
