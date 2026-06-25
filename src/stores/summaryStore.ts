@@ -3,19 +3,22 @@ import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { estimateWeightChange } from '@/utils/calculations'
-import { todayISO } from '@/utils/date'
+import { todayISO, addDays } from '@/utils/date'
 import type { DailySummaryRow } from '@/types/database'
 
 interface SummaryState {
   todaySummary: DailySummaryRow | null
+  recentSummaries: DailySummaryRow[]
   isLoading: boolean
   error: string | null
   fetchSummary: (date: string) => Promise<void>
   calculateAndSave: (date: string) => Promise<void>
+  fetchRecentSummaries: (days?: number) => Promise<void>
 }
 
 export const useSummaryStore = create<SummaryState>((set) => ({
   todaySummary: null,
+  recentSummaries: [],
   isLoading: false,
   error: null,
 
@@ -96,5 +99,23 @@ export const useSummaryStore = create<SummaryState>((set) => ({
     } else {
       set({ isLoading: false })
     }
+  },
+
+  fetchRecentSummaries: async (days = 30) => {
+    const userId = useAuthStore.getState().user?.id
+    if (!userId) return
+    set({ isLoading: true, error: null })
+    const since = addDays(todayISO(), -(days - 1))
+    const { data, error } = await supabase
+      .from('daily_summaries')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('summary_date', since)
+      .order('summary_date', { ascending: true })
+    if (error) {
+      set({ error: error.message, isLoading: false })
+      return
+    }
+    set({ recentSummaries: data ?? [], isLoading: false })
   },
 }))
