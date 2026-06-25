@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import { useMealStore } from '@/stores/mealStore'
 import { useExerciseStore } from '@/stores/exerciseStore'
 import { useWeightStore } from '@/stores/weightStore'
 import { useSummaryStore } from '@/stores/summaryStore'
+import { useAiStore } from '@/stores/aiStore'
+import type { EstimateResult } from '@/stores/aiStore'
 import { todayISO } from '@/utils/date'
 import type { MealType, MeasuredTiming } from '@/types/database'
 
@@ -44,8 +46,23 @@ const MEASURED_TIMINGS: { value: MeasuredTiming; label: string }[] = [
 
 // ─── 식사 폼 ─────────────────────────────────────────────────────────────────
 
+const CONFIDENCE_COLOR: Record<EstimateResult['confidence'], string> = {
+  high: '#10b981',
+  medium: '#f59e0b',
+  low: '#ef4444',
+}
+const CONFIDENCE_LABEL: Record<EstimateResult['confidence'], string> = {
+  high: '높음',
+  medium: '보통',
+  low: '낮음',
+}
+
 function MealForm({ date }: { date: string }) {
   const { addLog, isLoading } = useMealStore()
+  const { estimateCalories, isEstimating } = useAiStore()
+  const [aiNote, setAiNote] = useState<{ text: string; confidence: EstimateResult['confidence'] } | null>(null)
+  const aiFilledCalories = useRef<number | null>(null)
+
   const {
     control,
     handleSubmit,
@@ -58,6 +75,22 @@ function MealForm({ date }: { date: string }) {
     defaultValues: { meal_date: date, meal_type: undefined },
   })
   const selectedMealType = watch('meal_type')
+  const foodName = watch('food_name')
+
+  const handleAiEstimate = useCallback(async () => {
+    if (!foodName) return
+    const result = await estimateCalories(foodName, selectedMealType)
+    if (!result) {
+      Alert.alert('AI 추정 실패', 'AI 추정에 실패했습니다. 직접 입력해 주세요.')
+      return
+    }
+    aiFilledCalories.current = result.calories
+    setValue('calories', result.calories, { shouldValidate: true })
+    if (result.protein_g != null) setValue('protein_g', result.protein_g)
+    if (result.carbs_g != null) setValue('carbs_g', result.carbs_g)
+    if (result.fat_g != null) setValue('fat_g', result.fat_g)
+    setAiNote({ text: result.note, confidence: result.confidence })
+  }, [foodName, selectedMealType, estimateCalories, setValue])
 
   const onSubmit = async (data: MealFormData) => {
     await addLog({ ...data, meal_date: date })
@@ -65,6 +98,8 @@ function MealForm({ date }: { date: string }) {
     if (!store.error) {
       await useSummaryStore.getState().calculateAndSave(date)
       reset({ meal_date: date, meal_type: undefined })
+      setAiNote(null)
+      aiFilledCalories.current = null
       Alert.alert('저장 완료', '식사 기록이 저장되었습니다.')
     } else {
       Alert.alert('오류', store.error)
@@ -106,6 +141,14 @@ function MealForm({ date }: { date: string }) {
       />
       {errors.food_name && <Text style={s.error}>{errors.food_name.message}</Text>}
 
+      <TouchableOpacity
+        style={[s.aiBtn, (!foodName || isEstimating) && s.aiBtnDisabled]}
+        onPress={handleAiEstimate}
+        disabled={!foodName || isEstimating}
+      >
+        <Text style={s.aiBtnText}>{isEstimating ? '추정 중...' : 'AI 칼로리 추정'}</Text>
+      </TouchableOpacity>
+
       <Text style={s.label}>칼로리 (kcal) *</Text>
       <Controller
         control={control}
@@ -114,7 +157,13 @@ function MealForm({ date }: { date: string }) {
           <TextInput
             style={s.input}
             value={value?.toString() ?? ''}
-            onChangeText={onChange}
+            onChangeText={(v) => {
+              onChange(v)
+              if (aiFilledCalories.current !== null && Number(v) !== aiFilledCalories.current) {
+                setAiNote(null)
+                aiFilledCalories.current = null
+              }
+            }}
             onBlur={onBlur}
             placeholder="예: 550"
             keyboardType="number-pad"
@@ -122,6 +171,15 @@ function MealForm({ date }: { date: string }) {
           />
         )}
       />
+
+      {aiNote && (
+        <View style={s.aiNote}>
+          <Text style={[s.aiNoteConfidence, { color: CONFIDENCE_COLOR[aiNote.confidence] }]}>
+            ✓ AI 추정  신뢰도: {CONFIDENCE_LABEL[aiNote.confidence]}
+          </Text>
+          <Text style={s.aiNoteText}>{aiNote.text}</Text>
+        </View>
+      )}
       {errors.calories && <Text style={s.error}>{errors.calories.message}</Text>}
 
       <View style={s.row}>
@@ -548,6 +606,28 @@ const s = StyleSheet.create({
   tabBtnTextActive: { color: '#111', fontWeight: '700' },
 
   formContainer: { marginTop: 4 },
+
+  aiBtn: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#6366f1',
+  },
+  aiBtnDisabled: { opacity: 0.4 },
+  aiBtnText: { fontSize: 13, color: '#fff', fontWeight: '600' },
+
+  aiNote: {
+    marginTop: 8,
+    padding: 10,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#10b981',
+  },
+  aiNoteConfidence: { fontSize: 12, fontWeight: '700', marginBottom: 2 },
+  aiNoteText: { fontSize: 12, color: '#555' },
 
   submitBtn: {
     backgroundColor: '#3b82f6',
