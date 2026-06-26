@@ -13,6 +13,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useGoalStore } from '@/stores/goalStore'
 import { useSummaryStore } from '@/stores/summaryStore'
+import { useFeedbackStore } from '@/stores/feedbackStore'
 import { todayISO, formatDate } from '@/utils/date'
 
 export default function HomeScreen() {
@@ -20,13 +21,16 @@ export default function HomeScreen() {
   const { tdee } = useProfileStore()
   const { activeGoal, daysRemaining, dailyDeficit } = useGoalStore()
   const { todaySummary, isLoading, calculateAndSave } = useSummaryStore()
+  const { dailyFeedback, isGenerating, generateDailyFeedback, fetchDailyFeedback } =
+    useFeedbackStore()
 
   const today = todayISO()
 
   useFocusEffect(
     useCallback(() => {
       calculateAndSave(today)
-    }, [calculateAndSave, today])
+      fetchDailyFeedback(today)
+    }, [calculateAndSave, fetchDailyFeedback, today])
   )
 
   const refresh = useCallback(async () => {
@@ -154,6 +158,34 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* AI 피드백 카드 */}
+        <View style={s.card}>
+          <View style={s.feedbackHeader}>
+            <Text style={s.cardTitle}>오늘의 AI 피드백</Text>
+            {dailyFeedback && (
+              <TouchableOpacity
+                onPress={() => generateDailyFeedback(today)}
+                disabled={isGenerating}
+              >
+                <Text style={[s.regenBtn, isGenerating && { opacity: 0.4 }]}>다시 생성</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          {dailyFeedback ? (
+            <Text style={s.feedbackText}>{dailyFeedback.feedback}</Text>
+          ) : (
+            <TouchableOpacity
+              style={[s.feedbackBtn, isGenerating && s.feedbackBtnDisabled]}
+              onPress={() => generateDailyFeedback(today)}
+              disabled={isGenerating}
+            >
+              <Text style={s.feedbackBtnText}>
+                {isGenerating ? '피드백 생성 중...' : '✨ AI 피드백 받기'}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* 새로고침 */}
         <TouchableOpacity style={s.refreshBtn} onPress={refresh} disabled={isLoading}>
           <Text style={s.refreshBtnText}>새로고침</Text>
@@ -220,6 +252,19 @@ const s = StyleSheet.create({
   progressFill: { height: 8, backgroundColor: '#3b82f6', borderRadius: 4 },
   progressLabel: { flexDirection: 'row', justifyContent: 'space-between' },
   progressText: { fontSize: 12, color: '#888' },
+
+  feedbackHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  regenBtn: { fontSize: 12, color: '#6366f1', fontWeight: '600' },
+  feedbackText: { fontSize: 14, color: '#333', lineHeight: 22, marginTop: 4 },
+  feedbackBtn: {
+    marginTop: 8,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#6366f1',
+    alignItems: 'center',
+  },
+  feedbackBtnDisabled: { opacity: 0.5 },
+  feedbackBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 
   refreshBtn: {
     marginTop: 8,
