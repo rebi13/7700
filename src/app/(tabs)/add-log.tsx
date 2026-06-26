@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useForm, Controller } from 'react-hook-form'
@@ -25,7 +26,7 @@ import { useAiStore } from '@/stores/aiStore'
 import type { EstimateResult } from '@/stores/aiStore'
 import { todayISO } from '@/utils/date'
 import { useHealthStore } from '@/stores/healthStore'
-import type { MealType, MeasuredTiming } from '@/types/database'
+import type { MealType, MeasuredTiming, MealLogRow, ExerciseLogRow, WeightLogRow } from '@/types/database'
 
 function formatLastSync(iso: string): string {
   const d = new Date(iso)
@@ -485,12 +486,390 @@ function WeightForm({ date }: { date: string }) {
   )
 }
 
+// ─── 식사 수정 모달 ───────────────────────────────────────────────────────────
+
+function MealEditModal({
+  item,
+  date,
+  onClose,
+}: {
+  item: MealLogRow | null
+  date: string
+  onClose: () => void
+}) {
+  const { updateLog, fetchLogs, isLoading } = useMealStore()
+  const { calculateAndSave } = useSummaryStore()
+
+  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } =
+    useForm<MealFormData>({ resolver: zodResolver(mealSchema) })
+  const selectedMealType = watch('meal_type')
+
+  useEffect(() => {
+    if (item) {
+      reset({
+        food_name: item.food_name,
+        calories: item.calories,
+        meal_type: item.meal_type ?? undefined,
+        meal_date: item.meal_date,
+        protein_g: item.protein_g ?? undefined,
+        carbs_g: item.carbs_g ?? undefined,
+        fat_g: item.fat_g ?? undefined,
+        memo: item.memo ?? undefined,
+      })
+    }
+  }, [item, reset])
+
+  const onSubmit = async (data: MealFormData) => {
+    if (!item) return
+    await updateLog(item.id, {
+      food_name: data.food_name,
+      calories: data.calories,
+      meal_type: data.meal_type,
+      protein_g: data.protein_g ?? null,
+      carbs_g: data.carbs_g ?? null,
+      fat_g: data.fat_g ?? null,
+      memo: data.memo ?? null,
+    })
+    await fetchLogs(date)
+    await calculateAndSave(date)
+    onClose()
+  }
+
+  return (
+    <Modal visible={!!item} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={em.safe}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={em.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={em.cancel}>취소</Text>
+            </TouchableOpacity>
+            <Text style={em.title}>식사 수정</Text>
+            <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={isLoading}>
+              <Text style={[em.save, isLoading && { opacity: 0.4 }]}>
+                {isLoading ? '저장 중' : '저장'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={em.scroll} keyboardShouldPersistTaps="handled">
+            <Text style={s.label}>식사 종류 *</Text>
+            <View style={s.row}>
+              {MEAL_TYPES.map((t) => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[s.chip, selectedMealType === t.value && s.chipActive]}
+                  onPress={() => setValue('meal_type', t.value, { shouldValidate: true })}
+                >
+                  <Text style={[s.chipText, selectedMealType === t.value && s.chipTextActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {errors.meal_type && <Text style={s.error}>{errors.meal_type.message}</Text>}
+
+            <Text style={s.label}>음식 이름 *</Text>
+            <Controller control={control} name="food_name"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={s.input} value={value} onChangeText={onChange} onBlur={onBlur} />
+              )}
+            />
+            {errors.food_name && <Text style={s.error}>{errors.food_name.message}</Text>}
+
+            <Text style={s.label}>칼로리 (kcal) *</Text>
+            <Controller control={control} name="calories"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} keyboardType="number-pad" />
+              )}
+            />
+            {errors.calories && <Text style={s.error}>{errors.calories.message}</Text>}
+
+            <View style={s.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>단백질 (g)</Text>
+                <Controller control={control} name="protein_g"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                      onBlur={onBlur} keyboardType="decimal-pad" placeholder="0" />
+                  )}
+                />
+              </View>
+              <View style={[{ flex: 1 }, s.mx4]}>
+                <Text style={s.label}>탄수화물 (g)</Text>
+                <Controller control={control} name="carbs_g"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                      onBlur={onBlur} keyboardType="decimal-pad" placeholder="0" />
+                  )}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.label}>지방 (g)</Text>
+                <Controller control={control} name="fat_g"
+                  render={({ field: { value, onChange, onBlur } }) => (
+                    <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                      onBlur={onBlur} keyboardType="decimal-pad" placeholder="0" />
+                  )}
+                />
+              </View>
+            </View>
+
+            <Text style={s.label}>메모</Text>
+            <Controller control={control} name="memo"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={[s.input, s.multiline]} value={value ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} multiline numberOfLines={2} placeholder="선택사항" />
+              )}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  )
+}
+
+// ─── 운동 수정 모달 ───────────────────────────────────────────────────────────
+
+function ExerciseEditModal({
+  item,
+  date,
+  onClose,
+}: {
+  item: ExerciseLogRow | null
+  date: string
+  onClose: () => void
+}) {
+  const { updateLog, fetchLogs, isLoading } = useExerciseStore()
+  const { calculateAndSave } = useSummaryStore()
+
+  const { control, handleSubmit, reset, formState: { errors } } =
+    useForm<ExerciseFormData>({ resolver: zodResolver(exerciseSchema) })
+
+  useEffect(() => {
+    if (item) {
+      reset({
+        exercise_name: item.exercise_name,
+        calories_burned: item.calories_burned,
+        duration_minutes: item.duration_minutes ?? undefined,
+        exercise_date: item.exercise_date,
+        memo: item.memo ?? undefined,
+      })
+    }
+  }, [item, reset])
+
+  const onSubmit = async (data: ExerciseFormData) => {
+    if (!item) return
+    await updateLog(item.id, {
+      exercise_name: data.exercise_name,
+      calories_burned: data.calories_burned,
+      duration_minutes: data.duration_minutes ?? null,
+      memo: data.memo ?? null,
+    })
+    await fetchLogs(date)
+    await calculateAndSave(date)
+    onClose()
+  }
+
+  return (
+    <Modal visible={!!item} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={em.safe}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={em.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={em.cancel}>취소</Text>
+            </TouchableOpacity>
+            <Text style={em.title}>운동 수정</Text>
+            <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={isLoading}>
+              <Text style={[em.save, isLoading && { opacity: 0.4 }]}>
+                {isLoading ? '저장 중' : '저장'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={em.scroll} keyboardShouldPersistTaps="handled">
+            <Text style={s.label}>운동 이름 *</Text>
+            <Controller control={control} name="exercise_name"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={s.input} value={value} onChangeText={onChange} onBlur={onBlur} />
+              )}
+            />
+            {errors.exercise_name && <Text style={s.error}>{errors.exercise_name.message}</Text>}
+
+            <Text style={s.label}>소모 칼로리 (kcal) *</Text>
+            <Controller control={control} name="calories_burned"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} keyboardType="number-pad" />
+              )}
+            />
+            {errors.calories_burned && <Text style={s.error}>{errors.calories_burned.message}</Text>}
+
+            <Text style={s.label}>운동 시간 (분)</Text>
+            <Controller control={control} name="duration_minutes"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} keyboardType="number-pad" placeholder="선택사항" />
+              )}
+            />
+
+            <Text style={s.label}>메모</Text>
+            <Controller control={control} name="memo"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={[s.input, s.multiline]} value={value ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} multiline numberOfLines={2} placeholder="선택사항" />
+              )}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  )
+}
+
+// ─── 체중 수정 모달 ───────────────────────────────────────────────────────────
+
+function WeightEditModal({
+  item,
+  date,
+  onClose,
+}: {
+  item: WeightLogRow | null
+  date: string
+  onClose: () => void
+}) {
+  const { updateLog, fetchLogs, isLoading } = useWeightStore()
+
+  const { control, handleSubmit, reset, setValue, watch, formState: { errors } } =
+    useForm<WeightFormData>({ resolver: zodResolver(weightSchema) })
+  const selectedTiming = watch('measured_timing')
+
+  useEffect(() => {
+    if (item) {
+      reset({
+        weight_kg: item.weight_kg,
+        weight_date: item.weight_date,
+        measured_timing: item.measured_timing ?? null,
+        memo: item.memo ?? undefined,
+      })
+    }
+  }, [item, reset])
+
+  const onSubmit = async (data: WeightFormData) => {
+    if (!item) return
+    await updateLog(item.id, {
+      weight_kg: data.weight_kg,
+      measured_timing: data.measured_timing ?? null,
+      memo: data.memo ?? null,
+    })
+    await fetchLogs(date)
+    onClose()
+  }
+
+  return (
+    <Modal visible={!!item} animationType="slide" presentationStyle="pageSheet">
+      <SafeAreaView style={em.safe}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={em.header}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={em.cancel}>취소</Text>
+            </TouchableOpacity>
+            <Text style={em.title}>체중 수정</Text>
+            <TouchableOpacity onPress={handleSubmit(onSubmit)} disabled={isLoading}>
+              <Text style={[em.save, isLoading && { opacity: 0.4 }]}>
+                {isLoading ? '저장 중' : '저장'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={em.scroll} keyboardShouldPersistTaps="handled">
+            <Text style={s.label}>체중 (kg) *</Text>
+            <Controller control={control} name="weight_kg"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} keyboardType="decimal-pad" />
+              )}
+            />
+            {errors.weight_kg && <Text style={s.error}>{errors.weight_kg.message}</Text>}
+
+            <Text style={s.label}>측정 시간대</Text>
+            <View style={s.row}>
+              {MEASURED_TIMINGS.map((t) => (
+                <TouchableOpacity
+                  key={t.value}
+                  style={[s.chip, selectedTiming === t.value && s.chipActive]}
+                  onPress={() =>
+                    setValue('measured_timing', selectedTiming === t.value ? null : t.value, {
+                      shouldValidate: true,
+                    })
+                  }
+                >
+                  <Text style={[s.chipText, selectedTiming === t.value && s.chipTextActive]}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={s.label}>메모</Text>
+            <Controller control={control} name="memo"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput style={[s.input, s.multiline]} value={value ?? ''} onChangeText={onChange}
+                  onBlur={onBlur} multiline numberOfLines={2} placeholder="선택사항" />
+              )}
+            />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
+  )
+}
+
 // ─── 메인 화면 ───────────────────────────────────────────────────────────────
 
 export default function AddLogScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('meal')
   const [selectedDate, setSelectedDate] = useState(todayISO())
   const { isSyncing, lastSyncedAt, requestPermissions, syncAll } = useHealthStore()
+
+  const mealLogs = useMealStore((st) => st.logs)
+  const exerciseLogs = useExerciseStore((st) => st.logs)
+  const weightLogs = useWeightStore((st) => st.logs)
+  const fetchMealLogs = useMealStore((st) => st.fetchLogs)
+  const fetchExerciseLogs = useExerciseStore((st) => st.fetchLogs)
+  const fetchWeightLogs = useWeightStore((st) => st.fetchLogs)
+  const deleteMealLog = useMealStore((st) => st.deleteLog)
+  const deleteExerciseLog = useExerciseStore((st) => st.deleteLog)
+  const deleteWeightLog = useWeightStore((st) => st.deleteLog)
+  const { calculateAndSave } = useSummaryStore()
+
+  const [editingMeal, setEditingMeal] = useState<MealLogRow | null>(null)
+  const [editingExercise, setEditingExercise] = useState<ExerciseLogRow | null>(null)
+  const [editingWeight, setEditingWeight] = useState<WeightLogRow | null>(null)
+
+  useEffect(() => {
+    if (activeTab === 'meal') fetchMealLogs(selectedDate)
+    else if (activeTab === 'exercise') fetchExerciseLogs(selectedDate)
+    else if (activeTab === 'weight') fetchWeightLogs(selectedDate)
+  }, [activeTab, selectedDate, fetchMealLogs, fetchExerciseLogs, fetchWeightLogs])
+
+  const handleDelete = useCallback((id: string, type: TabType) => {
+    Alert.alert('삭제', '이 기록을 삭제하시겠습니까?', [
+      { text: '취소', style: 'cancel' },
+      {
+        text: '삭제',
+        style: 'destructive',
+        onPress: async () => {
+          if (type === 'meal') {
+            await deleteMealLog(id)
+            await calculateAndSave(selectedDate)
+          } else if (type === 'exercise') {
+            await deleteExerciseLog(id)
+            await calculateAndSave(selectedDate)
+          } else {
+            await deleteWeightLog(id)
+          }
+        },
+      },
+    ])
+  }, [deleteMealLog, deleteExerciseLog, deleteWeightLog, calculateAndSave, selectedDate])
 
   const handleHealthSync = useCallback(async () => {
     const granted = await requestPermissions()
@@ -588,8 +967,115 @@ export default function AddLogScreen() {
             {activeTab === 'exercise' && <ExerciseForm date={selectedDate} />}
             {activeTab === 'weight' && <WeightForm date={selectedDate} />}
           </View>
+
+          <View style={s.listSection}>
+            <Text style={s.listTitle}>기록 목록</Text>
+
+            {activeTab === 'meal' && (
+              mealLogs.length === 0
+                ? <Text style={s.listEmpty}>이 날짜에 식사 기록이 없습니다.</Text>
+                : mealLogs.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={s.logRow}
+                      onPress={() => setEditingMeal(item)}
+                    >
+                      <View style={s.logRowLeft}>
+                        <Text style={s.logRowName}>{item.food_name}</Text>
+                        {item.meal_type && (
+                          <Text style={s.logRowSub}>
+                            {MEAL_TYPES.find((t) => t.value === item.meal_type)?.label}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={s.logRowRight}>
+                        <Text style={s.logRowCal}>{item.calories} kcal</Text>
+                        <TouchableOpacity
+                          style={s.deleteBtn}
+                          onPress={() => handleDelete(item.id, 'meal')}
+                        >
+                          <Text style={s.deleteBtnText}>삭제</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+            )}
+
+            {activeTab === 'exercise' && (
+              exerciseLogs.length === 0
+                ? <Text style={s.listEmpty}>이 날짜에 운동 기록이 없습니다.</Text>
+                : exerciseLogs.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={s.logRow}
+                      onPress={() => setEditingExercise(item)}
+                    >
+                      <View style={s.logRowLeft}>
+                        <Text style={s.logRowName}>{item.exercise_name}</Text>
+                        {item.duration_minutes && (
+                          <Text style={s.logRowSub}>{item.duration_minutes}분</Text>
+                        )}
+                      </View>
+                      <View style={s.logRowRight}>
+                        <Text style={s.logRowCal}>{item.calories_burned} kcal</Text>
+                        <TouchableOpacity
+                          style={s.deleteBtn}
+                          onPress={() => handleDelete(item.id, 'exercise')}
+                        >
+                          <Text style={s.deleteBtnText}>삭제</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+            )}
+
+            {activeTab === 'weight' && (
+              weightLogs.length === 0
+                ? <Text style={s.listEmpty}>이 날짜에 체중 기록이 없습니다.</Text>
+                : weightLogs.map((item) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={s.logRow}
+                      onPress={() => setEditingWeight(item)}
+                    >
+                      <View style={s.logRowLeft}>
+                        <Text style={s.logRowName}>{item.weight_kg} kg</Text>
+                        {item.measured_timing && (
+                          <Text style={s.logRowSub}>
+                            {MEASURED_TIMINGS.find((t) => t.value === item.measured_timing)?.label}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={s.logRowRight}>
+                        <TouchableOpacity
+                          style={s.deleteBtn}
+                          onPress={() => handleDelete(item.id, 'weight')}
+                        >
+                          <Text style={s.deleteBtnText}>삭제</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </TouchableOpacity>
+                  ))
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <MealEditModal
+        item={editingMeal}
+        date={selectedDate}
+        onClose={() => setEditingMeal(null)}
+      />
+      <ExerciseEditModal
+        item={editingExercise}
+        date={selectedDate}
+        onClose={() => setEditingExercise(null)}
+      />
+      <WeightEditModal
+        item={editingWeight}
+        date={selectedDate}
+        onClose={() => setEditingWeight(null)}
+      />
     </SafeAreaView>
   )
 }
@@ -699,4 +1185,47 @@ const s = StyleSheet.create({
   },
   btnDisabled: { opacity: 0.6 },
   submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  listSection: { marginTop: 24 },
+  listTitle: { fontSize: 15, fontWeight: '700', color: '#333', marginBottom: 10 },
+  listEmpty: { fontSize: 14, color: '#aaa', textAlign: 'center', paddingVertical: 12 },
+
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  logRowLeft: { flex: 1 },
+  logRowName: { fontSize: 14, fontWeight: '600', color: '#111' },
+  logRowSub: { fontSize: 12, color: '#888', marginTop: 2 },
+  logRowRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  logRowCal: { fontSize: 14, color: '#555' },
+  deleteBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
+  deleteBtnText: { fontSize: 12, color: '#ef4444', fontWeight: '600' },
+})
+
+const em = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: '#fff' },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  title: { fontSize: 16, fontWeight: '700', color: '#111' },
+  cancel: { fontSize: 15, color: '#888' },
+  save: { fontSize: 15, fontWeight: '700', color: '#3b82f6' },
+  scroll: { paddingHorizontal: 20, paddingTop: 4 },
 })
