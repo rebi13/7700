@@ -8,6 +8,7 @@ import {
   Alert,
   StyleSheet,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Modal,
 } from 'react-native'
@@ -81,6 +82,13 @@ function MealForm({ date }: { date: string }) {
   const [aiNote, setAiNote] = useState<{ text: string; confidence: EstimateResult['confidence'] } | null>(null)
   const aiFilledCalories = useRef<number | null>(null)
 
+  const foodNameRef = useRef<TextInput>(null)
+  const caloriesRef = useRef<TextInput>(null)
+  const proteinRef = useRef<TextInput>(null)
+  const carbsRef = useRef<TextInput>(null)
+  const fatRef = useRef<TextInput>(null)
+  const memoRef = useRef<TextInput>(null)
+
   const {
     control,
     handleSubmit,
@@ -108,9 +116,11 @@ function MealForm({ date }: { date: string }) {
     if (result.carbs_g != null) setValue('carbs_g', result.carbs_g)
     if (result.fat_g != null) setValue('fat_g', result.fat_g)
     setAiNote({ text: result.note, confidence: result.confidence })
+    caloriesRef.current?.focus()
   }, [foodName, selectedMealType, estimateCalories, setValue])
 
   const onSubmit = async (data: MealFormData) => {
+    Keyboard.dismiss()
     await addLog({ ...data, meal_date: date })
     const store = useMealStore.getState()
     if (!store.error) {
@@ -148,12 +158,14 @@ function MealForm({ date }: { date: string }) {
         name="food_name"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={foodNameRef}
             style={s.input}
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
             placeholder="예: 비빔밥"
             returnKeyType="next"
+            onSubmitEditing={() => caloriesRef.current?.focus()}
           />
         )}
       />
@@ -173,6 +185,7 @@ function MealForm({ date }: { date: string }) {
         name="calories"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={caloriesRef}
             style={s.input}
             value={value?.toString() ?? ''}
             onChangeText={(v) => {
@@ -186,6 +199,7 @@ function MealForm({ date }: { date: string }) {
             placeholder="예: 550"
             keyboardType="number-pad"
             returnKeyType="next"
+            onSubmitEditing={() => proteinRef.current?.focus()}
           />
         )}
       />
@@ -208,12 +222,15 @@ function MealForm({ date }: { date: string }) {
             name="protein_g"
             render={({ field: { value, onChange, onBlur } }) => (
               <TextInput
+                ref={proteinRef}
                 style={s.input}
                 value={value?.toString() ?? ''}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0"
                 keyboardType="decimal-pad"
+                returnKeyType="next"
+                onSubmitEditing={() => carbsRef.current?.focus()}
               />
             )}
           />
@@ -225,12 +242,15 @@ function MealForm({ date }: { date: string }) {
             name="carbs_g"
             render={({ field: { value, onChange, onBlur } }) => (
               <TextInput
+                ref={carbsRef}
                 style={s.input}
                 value={value?.toString() ?? ''}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0"
                 keyboardType="decimal-pad"
+                returnKeyType="next"
+                onSubmitEditing={() => fatRef.current?.focus()}
               />
             )}
           />
@@ -242,12 +262,15 @@ function MealForm({ date }: { date: string }) {
             name="fat_g"
             render={({ field: { value, onChange, onBlur } }) => (
               <TextInput
+                ref={fatRef}
                 style={s.input}
                 value={value?.toString() ?? ''}
                 onChangeText={onChange}
                 onBlur={onBlur}
                 placeholder="0"
                 keyboardType="decimal-pad"
+                returnKeyType="next"
+                onSubmitEditing={() => memoRef.current?.focus()}
               />
             )}
           />
@@ -260,6 +283,7 @@ function MealForm({ date }: { date: string }) {
         name="memo"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={memoRef}
             style={[s.input, s.multiline]}
             value={value ?? ''}
             onChangeText={onChange}
@@ -267,6 +291,8 @@ function MealForm({ date }: { date: string }) {
             placeholder="선택사항"
             multiline
             numberOfLines={2}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         )}
       />
@@ -286,6 +312,12 @@ function MealForm({ date }: { date: string }) {
 
 function ExerciseForm({ date }: { date: string }) {
   const { addLog, isLoading } = useExerciseStore()
+
+  const exerciseNameRef = useRef<TextInput>(null)
+  const caloriesBurnedRef = useRef<TextInput>(null)
+  const durationRef = useRef<TextInput>(null)
+  const memoRef = useRef<TextInput>(null)
+
   const {
     control,
     handleSubmit,
@@ -297,6 +329,7 @@ function ExerciseForm({ date }: { date: string }) {
   })
 
   const onSubmit = async (data: ExerciseFormData) => {
+    Keyboard.dismiss()
     await addLog({ ...data, exercise_date: date })
     const store = useExerciseStore.getState()
     if (!store.error) {
@@ -316,12 +349,14 @@ function ExerciseForm({ date }: { date: string }) {
         name="exercise_name"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={exerciseNameRef}
             style={s.input}
             value={value}
             onChangeText={onChange}
             onBlur={onBlur}
             placeholder="예: 러닝"
             returnKeyType="next"
+            onSubmitEditing={() => caloriesBurnedRef.current?.focus()}
           />
         )}
       />
@@ -333,6 +368,7 @@ function ExerciseForm({ date }: { date: string }) {
         name="calories_burned"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={caloriesBurnedRef}
             style={s.input}
             value={value?.toString() ?? ''}
             onChangeText={onChange}
@@ -340,6 +376,7 @@ function ExerciseForm({ date }: { date: string }) {
             placeholder="예: 300"
             keyboardType="number-pad"
             returnKeyType="next"
+            onSubmitEditing={() => durationRef.current?.focus()}
           />
         )}
       />
@@ -351,6 +388,7 @@ function ExerciseForm({ date }: { date: string }) {
         name="duration_minutes"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={durationRef}
             style={s.input}
             value={value?.toString() ?? ''}
             onChangeText={onChange}
@@ -358,6 +396,7 @@ function ExerciseForm({ date }: { date: string }) {
             placeholder="예: 30"
             keyboardType="number-pad"
             returnKeyType="next"
+            onSubmitEditing={() => memoRef.current?.focus()}
           />
         )}
       />
@@ -369,6 +408,7 @@ function ExerciseForm({ date }: { date: string }) {
         name="memo"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={memoRef}
             style={[s.input, s.multiline]}
             value={value ?? ''}
             onChangeText={onChange}
@@ -376,6 +416,8 @@ function ExerciseForm({ date }: { date: string }) {
             placeholder="선택사항"
             multiline
             numberOfLines={2}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         )}
       />
@@ -395,6 +437,10 @@ function ExerciseForm({ date }: { date: string }) {
 
 function WeightForm({ date }: { date: string }) {
   const { addLog, isLoading } = useWeightStore()
+
+  const weightRef = useRef<TextInput>(null)
+  const memoRef = useRef<TextInput>(null)
+
   const {
     control,
     handleSubmit,
@@ -409,6 +455,7 @@ function WeightForm({ date }: { date: string }) {
   const selectedTiming = watch('measured_timing')
 
   const onSubmit = async (data: WeightFormData) => {
+    Keyboard.dismiss()
     await addLog({ ...data, weight_date: date })
     const store = useWeightStore.getState()
     if (!store.error) {
@@ -427,6 +474,7 @@ function WeightForm({ date }: { date: string }) {
         name="weight_kg"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={weightRef}
             style={s.input}
             value={value?.toString() ?? ''}
             onChangeText={onChange}
@@ -434,6 +482,7 @@ function WeightForm({ date }: { date: string }) {
             placeholder="예: 68.5"
             keyboardType="decimal-pad"
             returnKeyType="next"
+            onSubmitEditing={() => memoRef.current?.focus()}
           />
         )}
       />
@@ -464,6 +513,7 @@ function WeightForm({ date }: { date: string }) {
         name="memo"
         render={({ field: { value, onChange, onBlur } }) => (
           <TextInput
+            ref={memoRef}
             style={[s.input, s.multiline]}
             value={value ?? ''}
             onChangeText={onChange}
@@ -471,6 +521,8 @@ function WeightForm({ date }: { date: string }) {
             placeholder="선택사항"
             multiline
             numberOfLines={2}
+            returnKeyType="done"
+            onSubmitEditing={() => Keyboard.dismiss()}
           />
         )}
       />
@@ -500,6 +552,13 @@ function MealEditModal({
   const { updateLog, fetchLogs, isLoading } = useMealStore()
   const { calculateAndSave } = useSummaryStore()
 
+  const foodNameRef = useRef<TextInput>(null)
+  const caloriesRef = useRef<TextInput>(null)
+  const proteinRef = useRef<TextInput>(null)
+  const carbsRef = useRef<TextInput>(null)
+  const fatRef = useRef<TextInput>(null)
+  const memoRef = useRef<TextInput>(null)
+
   const { control, handleSubmit, reset, setValue, watch, formState: { errors } } =
     useForm<MealFormData>({ resolver: zodResolver(mealSchema) })
   const selectedMealType = watch('meal_type')
@@ -521,6 +580,7 @@ function MealEditModal({
 
   const onSubmit = async (data: MealFormData) => {
     if (!item) return
+    Keyboard.dismiss()
     await updateLog(item.id, {
       food_name: data.food_name,
       calories: data.calories,
@@ -570,7 +630,15 @@ function MealEditModal({
             <Text style={s.label}>음식 이름 *</Text>
             <Controller control={control} name="food_name"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={s.input} value={value} onChangeText={onChange} onBlur={onBlur} />
+                <TextInput
+                  ref={foodNameRef}
+                  style={s.input}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  returnKeyType="next"
+                  onSubmitEditing={() => caloriesRef.current?.focus()}
+                />
               )}
             />
             {errors.food_name && <Text style={s.error}>{errors.food_name.message}</Text>}
@@ -578,8 +646,16 @@ function MealEditModal({
             <Text style={s.label}>칼로리 (kcal) *</Text>
             <Controller control={control} name="calories"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} keyboardType="number-pad" />
+                <TextInput
+                  ref={caloriesRef}
+                  style={s.input}
+                  value={value?.toString() ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="number-pad"
+                  returnKeyType="next"
+                  onSubmitEditing={() => proteinRef.current?.focus()}
+                />
               )}
             />
             {errors.calories && <Text style={s.error}>{errors.calories.message}</Text>}
@@ -589,8 +665,17 @@ function MealEditModal({
                 <Text style={s.label}>단백질 (g)</Text>
                 <Controller control={control} name="protein_g"
                   render={({ field: { value, onChange, onBlur } }) => (
-                    <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                      onBlur={onBlur} keyboardType="decimal-pad" placeholder="0" />
+                    <TextInput
+                      ref={proteinRef}
+                      style={s.input}
+                      value={value?.toString() ?? ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      returnKeyType="next"
+                      onSubmitEditing={() => carbsRef.current?.focus()}
+                    />
                   )}
                 />
               </View>
@@ -598,8 +683,17 @@ function MealEditModal({
                 <Text style={s.label}>탄수화물 (g)</Text>
                 <Controller control={control} name="carbs_g"
                   render={({ field: { value, onChange, onBlur } }) => (
-                    <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                      onBlur={onBlur} keyboardType="decimal-pad" placeholder="0" />
+                    <TextInput
+                      ref={carbsRef}
+                      style={s.input}
+                      value={value?.toString() ?? ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      returnKeyType="next"
+                      onSubmitEditing={() => fatRef.current?.focus()}
+                    />
                   )}
                 />
               </View>
@@ -607,8 +701,17 @@ function MealEditModal({
                 <Text style={s.label}>지방 (g)</Text>
                 <Controller control={control} name="fat_g"
                   render={({ field: { value, onChange, onBlur } }) => (
-                    <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                      onBlur={onBlur} keyboardType="decimal-pad" placeholder="0" />
+                    <TextInput
+                      ref={fatRef}
+                      style={s.input}
+                      value={value?.toString() ?? ''}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                      keyboardType="decimal-pad"
+                      placeholder="0"
+                      returnKeyType="next"
+                      onSubmitEditing={() => memoRef.current?.focus()}
+                    />
                   )}
                 />
               </View>
@@ -617,8 +720,18 @@ function MealEditModal({
             <Text style={s.label}>메모</Text>
             <Controller control={control} name="memo"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={[s.input, s.multiline]} value={value ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} multiline numberOfLines={2} placeholder="선택사항" />
+                <TextInput
+                  ref={memoRef}
+                  style={[s.input, s.multiline]}
+                  value={value ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  multiline
+                  numberOfLines={2}
+                  placeholder="선택사항"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
               )}
             />
           </ScrollView>
@@ -642,6 +755,11 @@ function ExerciseEditModal({
   const { updateLog, fetchLogs, isLoading } = useExerciseStore()
   const { calculateAndSave } = useSummaryStore()
 
+  const exerciseNameRef = useRef<TextInput>(null)
+  const caloriesBurnedRef = useRef<TextInput>(null)
+  const durationRef = useRef<TextInput>(null)
+  const memoRef = useRef<TextInput>(null)
+
   const { control, handleSubmit, reset, formState: { errors } } =
     useForm<ExerciseFormData>({ resolver: zodResolver(exerciseSchema) })
 
@@ -659,6 +777,7 @@ function ExerciseEditModal({
 
   const onSubmit = async (data: ExerciseFormData) => {
     if (!item) return
+    Keyboard.dismiss()
     await updateLog(item.id, {
       exercise_name: data.exercise_name,
       calories_burned: data.calories_burned,
@@ -689,7 +808,15 @@ function ExerciseEditModal({
             <Text style={s.label}>운동 이름 *</Text>
             <Controller control={control} name="exercise_name"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={s.input} value={value} onChangeText={onChange} onBlur={onBlur} />
+                <TextInput
+                  ref={exerciseNameRef}
+                  style={s.input}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  returnKeyType="next"
+                  onSubmitEditing={() => caloriesBurnedRef.current?.focus()}
+                />
               )}
             />
             {errors.exercise_name && <Text style={s.error}>{errors.exercise_name.message}</Text>}
@@ -697,8 +824,16 @@ function ExerciseEditModal({
             <Text style={s.label}>소모 칼로리 (kcal) *</Text>
             <Controller control={control} name="calories_burned"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} keyboardType="number-pad" />
+                <TextInput
+                  ref={caloriesBurnedRef}
+                  style={s.input}
+                  value={value?.toString() ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="number-pad"
+                  returnKeyType="next"
+                  onSubmitEditing={() => durationRef.current?.focus()}
+                />
               )}
             />
             {errors.calories_burned && <Text style={s.error}>{errors.calories_burned.message}</Text>}
@@ -706,16 +841,35 @@ function ExerciseEditModal({
             <Text style={s.label}>운동 시간 (분)</Text>
             <Controller control={control} name="duration_minutes"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} keyboardType="number-pad" placeholder="선택사항" />
+                <TextInput
+                  ref={durationRef}
+                  style={s.input}
+                  value={value?.toString() ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="number-pad"
+                  placeholder="선택사항"
+                  returnKeyType="next"
+                  onSubmitEditing={() => memoRef.current?.focus()}
+                />
               )}
             />
 
             <Text style={s.label}>메모</Text>
             <Controller control={control} name="memo"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={[s.input, s.multiline]} value={value ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} multiline numberOfLines={2} placeholder="선택사항" />
+                <TextInput
+                  ref={memoRef}
+                  style={[s.input, s.multiline]}
+                  value={value ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  multiline
+                  numberOfLines={2}
+                  placeholder="선택사항"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
               )}
             />
           </ScrollView>
@@ -738,6 +892,9 @@ function WeightEditModal({
 }) {
   const { updateLog, fetchLogs, isLoading } = useWeightStore()
 
+  const weightRef = useRef<TextInput>(null)
+  const memoRef = useRef<TextInput>(null)
+
   const { control, handleSubmit, reset, setValue, watch, formState: { errors } } =
     useForm<WeightFormData>({ resolver: zodResolver(weightSchema) })
   const selectedTiming = watch('measured_timing')
@@ -755,6 +912,7 @@ function WeightEditModal({
 
   const onSubmit = async (data: WeightFormData) => {
     if (!item) return
+    Keyboard.dismiss()
     await updateLog(item.id, {
       weight_kg: data.weight_kg,
       measured_timing: data.measured_timing ?? null,
@@ -783,8 +941,16 @@ function WeightEditModal({
             <Text style={s.label}>체중 (kg) *</Text>
             <Controller control={control} name="weight_kg"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={s.input} value={value?.toString() ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} keyboardType="decimal-pad" />
+                <TextInput
+                  ref={weightRef}
+                  style={s.input}
+                  value={value?.toString() ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                  onSubmitEditing={() => memoRef.current?.focus()}
+                />
               )}
             />
             {errors.weight_kg && <Text style={s.error}>{errors.weight_kg.message}</Text>}
@@ -811,8 +977,18 @@ function WeightEditModal({
             <Text style={s.label}>메모</Text>
             <Controller control={control} name="memo"
               render={({ field: { value, onChange, onBlur } }) => (
-                <TextInput style={[s.input, s.multiline]} value={value ?? ''} onChangeText={onChange}
-                  onBlur={onBlur} multiline numberOfLines={2} placeholder="선택사항" />
+                <TextInput
+                  ref={memoRef}
+                  style={[s.input, s.multiline]}
+                  value={value ?? ''}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  multiline
+                  numberOfLines={2}
+                  placeholder="선택사항"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
+                />
               )}
             />
           </ScrollView>
@@ -901,6 +1077,7 @@ export default function AddLogScreen() {
   }, [])
 
   const handleTabChange = useCallback((tab: TabType) => {
+    Keyboard.dismiss()
     setActiveTab(tab)
   }, [])
 
