@@ -14,6 +14,7 @@ interface ProfileState {
   fetchProfile: () => Promise<void>
   createProfile: (data: Omit<ProfileInsert, 'user_id'>) => Promise<void>
   updateProfile: (data: ProfileUpdate) => Promise<void>
+  clearError: () => void
 }
 
 function computeMetrics(p: ProfileRow): { bmr: number; tdee: number } | null {
@@ -112,4 +113,6 @@ export const useProfileStore = create<ProfileState>((set) => ({
       isLoading: false,
     })
   },
+
+  clearError: () => set({ error: null }),
 }))

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
@@ -27,6 +28,8 @@ import {
   type ProfileFormData,
   type GoalFormData,
 } from '@/schemas/onboarding'
+import { SkeletonCard } from '@/components/SkeletonCard'
+import { ErrorBanner } from '@/components/ErrorBanner'
 import { todayISO } from '@/utils/date'
 import type { Gender, ActivityLevel } from '@/types/database'
 
@@ -70,10 +73,13 @@ function dateToISO(d: Date): string {
 // ─── 프로필 수정 모달 ──────────────────────────────────────────────────────────
 
 function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { profile, updateProfile, isLoading } = useProfileStore()
+  const { profile, updateProfile, isLoading, error, clearError } = useProfileStore()
   const { addLog } = useWeightStore()
   const { calculateAndSave } = useSummaryStore()
   const [birthDate, setBirthDate] = useState(new Date(1990, 0, 1))
+
+  const heightRef = useRef<TextInput>(null)
+  const weightRef = useRef<TextInput>(null)
 
   const {
     control,
@@ -89,6 +95,7 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
 
   useEffect(() => {
     if (visible && profile) {
+      clearError()
       const bd = parseDateStr(profile.birth_date)
       setBirthDate(bd)
       reset({
@@ -99,7 +106,7 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
         activityLevel: profile.activity_level ?? undefined,
       })
     }
-  }, [visible, profile, reset])
+  }, [visible, profile, reset, clearError])
 
   const handleBirthDateChange = useCallback(
     (_: DateTimePickerEvent, date?: Date) => {
@@ -112,6 +119,7 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
   )
 
   const onSubmit = async (data: ProfileFormData) => {
+    Keyboard.dismiss()
     const prevWeight = profile?.current_weight_kg
     await updateProfile({
       height_cm: data.heightCm,
@@ -120,8 +128,7 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
       gender: data.gender,
       activity_level: data.activityLevel,
     })
-    const { error } = useProfileStore.getState()
-    if (error) { Alert.alert('오류', error); return }
+    if (useProfileStore.getState().error) return
 
     if (prevWeight !== data.currentWeightKg) {
       await addLog({
@@ -156,18 +163,23 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
           </View>
 
           <ScrollView style={ms.scroll} keyboardShouldPersistTaps="handled">
+            {error && <ErrorBanner message={error} onDismiss={clearError} />}
+
             <Text style={ms.label}>키 (cm) *</Text>
             <Controller
               control={control}
               name="heightCm"
               render={({ field: { value, onChange, onBlur } }) => (
                 <TextInput
+                  ref={heightRef}
                   style={ms.input}
                   value={value?.toString() ?? ''}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   keyboardType="number-pad"
                   placeholder="예: 175"
+                  returnKeyType="next"
+                  onSubmitEditing={() => weightRef.current?.focus()}
                 />
               )}
             />
@@ -179,12 +191,15 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
               name="currentWeightKg"
               render={({ field: { value, onChange, onBlur } }) => (
                 <TextInput
+                  ref={weightRef}
                   style={ms.input}
                   value={value?.toString() ?? ''}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   keyboardType="decimal-pad"
                   placeholder="예: 70.5"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               )}
             />
@@ -246,10 +261,12 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
 // ─── 목표 수정 모달 ────────────────────────────────────────────────────────────
 
 function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { activeGoal, updateGoal, isLoading } = useGoalStore()
+  const { activeGoal, updateGoal, isLoading, error, clearError } = useGoalStore()
   const [targetDate, setTargetDate] = useState(() => {
     const d = new Date(); d.setMonth(d.getMonth() + 3); return d
   })
+
+  const targetWeightRef = useRef<TextInput>(null)
 
   const {
     control,
@@ -261,6 +278,7 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
   useEffect(() => {
     if (visible && activeGoal) {
+      clearError()
       const td = parseDateStr(activeGoal.target_date)
       setTargetDate(td)
       reset({
@@ -268,7 +286,7 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
         targetDate: activeGoal.target_date,
       })
     }
-  }, [visible, activeGoal, reset])
+  }, [visible, activeGoal, reset, clearError])
 
   const handleTargetDateChange = useCallback(
     (_: DateTimePickerEvent, date?: Date) => {
@@ -281,12 +299,12 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
   )
 
   const onSubmit = async (data: GoalFormData) => {
+    Keyboard.dismiss()
     await updateGoal({
       target_weight_kg: data.targetWeightKg,
       target_date: data.targetDate,
     })
-    const { error } = useGoalStore.getState()
-    if (error) { Alert.alert('오류', error); return }
+    if (useGoalStore.getState().error) return
     onClose()
     Alert.alert('저장 완료', '목표가 업데이트되었습니다.')
   }
@@ -311,18 +329,23 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
           </View>
 
           <ScrollView style={ms.scroll} keyboardShouldPersistTaps="handled">
+            {error && <ErrorBanner message={error} onDismiss={clearError} />}
+
             <Text style={ms.label}>목표 체중 (kg) *</Text>
             <Controller
               control={control}
               name="targetWeightKg"
               render={({ field: { value, onChange, onBlur } }) => (
                 <TextInput
+                  ref={targetWeightRef}
                   style={ms.input}
                   value={value?.toString() ?? ''}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   keyboardType="decimal-pad"
                   placeholder="예: 65"
+                  returnKeyType="done"
+                  onSubmitEditing={() => Keyboard.dismiss()}
                 />
               )}
             />
@@ -353,8 +376,15 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
 
 export default function SettingsScreen() {
   const { signOut } = useAuthStore()
-  const { profile, bmr, tdee, fetchProfile } = useProfileStore()
-  const { activeGoal, daysRemaining, dailyDeficit, fetchActiveGoal } = useGoalStore()
+  const {
+    profile, bmr, tdee, fetchProfile,
+    isLoading: profileLoading, error: profileError, clearError: clearProfileError,
+  } = useProfileStore()
+  const {
+    activeGoal, daysRemaining, dailyDeficit, fetchActiveGoal,
+    isLoading: goalLoading, error: goalError, clearError: clearGoalError,
+  } = useGoalStore()
+
   const [profileModalVisible, setProfileModalVisible] = useState(false)
   const [goalModalVisible, setGoalModalVisible] = useState(false)
 
@@ -372,20 +402,31 @@ export default function SettingsScreen() {
     ])
   }, [signOut])
 
+  const combinedError = profileError ?? goalError
+  const clearCombinedError = profileError ? clearProfileError : clearGoalError
+
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.scroll}>
         <Text style={s.title}>설정</Text>
 
+        {combinedError && (
+          <ErrorBanner message={combinedError} onDismiss={clearCombinedError} />
+        )}
+
         {/* 프로필 섹션 */}
         <View style={s.section}>
           <View style={s.sectionHeader}>
             <Text style={s.sectionTitle}>프로필</Text>
-            <TouchableOpacity onPress={() => setProfileModalVisible(true)}>
-              <Text style={s.editBtn}>수정 →</Text>
-            </TouchableOpacity>
+            {profile && (
+              <TouchableOpacity onPress={() => setProfileModalVisible(true)}>
+                <Text style={s.editBtn}>수정 →</Text>
+              </TouchableOpacity>
+            )}
           </View>
-          {profile ? (
+          {profileLoading ? (
+            <SkeletonCard rows={4} />
+          ) : profile ? (
             <View style={s.infoGrid}>
               <InfoRow label="키" value={`${profile.height_cm} cm`} />
               <InfoRow label="현재 체중" value={`${profile.current_weight_kg} kg`} />
@@ -402,7 +443,7 @@ export default function SettingsScreen() {
               {tdee && <InfoRow label="유지 칼로리" value={`${Math.round(tdee)} kcal`} />}
             </View>
           ) : (
-            <Text style={s.empty}>프로필 정보를 불러오는 중...</Text>
+            <Text style={s.empty}>프로필 정보가 없습니다.</Text>
           )}
         </View>
 
@@ -416,7 +457,9 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             )}
           </View>
-          {activeGoal ? (
+          {goalLoading ? (
+            <SkeletonCard rows={3} />
+          ) : activeGoal ? (
             <View style={s.infoGrid}>
               <InfoRow label="목표 체중" value={`${activeGoal.target_weight_kg} kg`} />
               <InfoRow label="목표일" value={activeGoal.target_date} />

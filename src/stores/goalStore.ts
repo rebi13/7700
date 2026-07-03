@@ -15,6 +15,7 @@ interface GoalState {
   fetchActiveGoal: () => Promise<void>
   createGoal: (data: Omit<GoalInsert, 'user_id'>) => Promise<void>
   updateGoal: (data: GoalUpdate) => Promise<void>
+  clearError: () => void
 }
 
 function computeGoalMetrics(goal: GoalRow) {
@@ -103,4 +104,6 @@ export const useGoalStore = create<GoalState>((set, get) => ({
 
     set({ activeGoal: updated, ...computeGoalMetrics(updated), isLoading: false })
   },
+
+  clearError: () => set({ error: null }),
 }))
