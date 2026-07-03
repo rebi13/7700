@@ -1,5 +1,21 @@
 # 테스트 체크리스트
 
+## 자동화 테스트 (`npm test`)
+
+> ✅ 아래 항목은 Jest 유닛 테스트로 자동 검증됨 — 수동 확인 불필요
+
+| 영역 | 파일 | 케이스 수 |
+|------|------|---------|
+| BMR·TDEE·일일 적자·체중 변화 계산 | `__tests__/utils/calculations.test.ts` | 8 |
+| AI 칼로리 추정 프롬프트·파싱·에러 | `__tests__/logic/estimate-calories.test.ts` | 7 |
+| 일일 피드백 프롬프트·빈 데이터·파싱 | `__tests__/logic/daily-feedback.test.ts` | 9 |
+| 주간 피드백 범위 계산·집계·프롬프트 | `__tests__/logic/weekly-feedback.test.ts` | 12 |
+| aiStore 성공·에러·로딩 전이 | `__tests__/stores/aiStore.test.ts` | 4 |
+| feedbackStore 일별·주별 생성·조회 | `__tests__/stores/feedbackStore.test.ts` | 11 |
+| **합계** | | **51** |
+
+---
+
 ## Phase 10 — 설정 화면
 
 ### 설정 탭 진입
@@ -58,4 +74,35 @@
 - [ ] 체중 그래프 데이터 표시 및 터치 툴팁
 - [ ] 칼로리 바 그래프 색상 (적자=초록, 초과=빨강)
 - [ ] 누적 적자 그래프 터치 툴팁
-- [ ] 데이터 없을 때 빈 상태 메시지
+- [ ] 데이터 없을 때 빈 상태 메시지 (EmptyState 컴포넌트)
+- [ ] 차트 로딩 중 SkeletonCard(200px) 표시
+- [ ] "이번 주 AI 피드백" 카드 표시 및 생성 동작 (Edge Function 배포 후)
+
+---
+
+## Phase 15 — UX 개선
+
+### 공통 컴포넌트
+- [ ] SkeletonCard — 홈·통계·설정 로딩 시 펄스 애니메이션 표시
+- [ ] ErrorBanner — 에러 발생 시 인라인 표시 + ✕ 닫기 동작
+
+### 홈 화면
+- [ ] 로딩 중 SkeletonCard 3개 표시
+- [ ] AI 피드백 생성 중 SkeletonCard 표시
+- [ ] 에러 시 ErrorBanner 표시
+
+### 기록 탭 — 포커스 체인
+- [ ] 식사 폼: 음식명 → 칼로리 → 단백질 → 탄수화물 → 지방 → 메모 순서로 포커스 이동
+- [ ] AI 추정 버튼 → 칼로리 필드로 자동 포커스
+- [ ] 운동 폼: 운동명 → 소모 칼로리 → 시간 → 메모
+- [ ] 체중 폼: 체중 → 메모
+- [ ] 저장 시 키보드 자동 닫힘
+- [ ] 탭 전환(식사/운동/체중) 시 키보드 자동 닫힘
+- [ ] 수정 모달 3종 — 동일한 포커스 체인 동작
+
+### 설정 화면
+- [ ] 프로필 섹션 로딩 중 SkeletonCard(rows=4) 표시
+- [ ] 목표 섹션 로딩 중 SkeletonCard(rows=3) 표시
+- [ ] store 에러 시 ErrorBanner 표시
+- [ ] 프로필 수정 모달: 키 → 체중 포커스 체인, 저장 시 키보드 닫힘
+- [ ] 목표 수정 모달: 목표 체중 → done, 저장 시 키보드 닫힘
