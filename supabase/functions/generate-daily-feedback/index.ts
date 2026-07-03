@@ -1,5 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { buildFeedbackUserMessage, parseFeedbackResponse } from '../_shared/daily-feedback.logic.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -42,7 +43,6 @@ Deno.serve(async (req) => {
   }
   if (!target_date) return json({ error: 'target_date is required' }, 400)
 
-  // 이미 생성된 피드백이 있으면 재사용
   const { data: existing } = await supabase
     .from('llm_feedbacks')
     .select('feedback')
@@ -53,7 +53,6 @@ Deno.serve(async (req) => {
 
   if (existing) return json({ feedback: existing.feedback })
 
-  // 해당 날짜 데이터 수집
   const [mealsRes, exerciseRes, summaryRes, goalRes] = await Promise.all([
     supabase
       .from('meal_logs')
@@ -79,42 +78,13 @@ Deno.serve(async (req) => {
       .maybeSingle(),
   ])
 
-  const meals = mealsRes.data ?? []
-  const exercises = exerciseRes.data ?? []
-  const summary = summaryRes.data
-  const goal = goalRes.data
-
-  const mealLines = meals.length > 0
-    ? meals.map((m: { food_name: string; calories: number }) => `- ${m.food_name} ${m.calories}kcal`).join('\n')
-    : '없음'
-
-  const exerciseLines = exercises.length > 0
-    ? exercises.map((e: { exercise_name: string; calories_burned: number; duration_minutes: number | null }) =>
-        `- ${e.exercise_name} ${e.calories_burned}kcal${e.duration_minutes ? ` (${e.duration_minutes}분)` : ''}`
-      ).join('\n')
-    : '없음'
-
-  const summaryLine = summary
-    ? `섭취 ${summary.total_intake_calories}kcal / 운동 소모 ${summary.total_exercise_calories}kcal / 칼로리 적자 ${summary.calorie_delta}kcal`
-    : '데이터 없음'
-
-  const goalLine = goal
-    ? `목표 체중 ${goal.target_weight_kg}kg (시작 ${goal.start_weight_kg}kg), 목표일 ${goal.target_date}`
-    : '없음'
-
-  const userMessage = `날짜: ${target_date}
-
-[식사]
-${mealLines}
-
-[운동]
-${exerciseLines}
-
-[오늘 요약]
-${summaryLine}
-
-[다이어트 목표]
-${goalLine}`
+  const userMessage = buildFeedbackUserMessage({
+    targetDate: target_date,
+    meals: mealsRes.data ?? [],
+    exercises: exerciseRes.data ?? [],
+    summary: summaryRes.data ?? null,
+    goal: goalRes.data ?? null,
+  })
 
   const apiKey = Deno.env.get('OPENAI_API_KEY')
   if (!apiKey) return json({ error: 'OpenAI API key not configured' }, 500)
@@ -139,8 +109,13 @@ ${goalLine}`
   }
 
   const openAIData = await openAIRes.json()
-  const feedback: string = openAIData.choices?.[0]?.message?.content?.trim() ?? ''
-  if (!feedback) return json({ error: 'Empty response from OpenAI' }, 502)
+
+  let feedback: string
+  try {
+    feedback = parseFeedbackResponse(openAIData.choices?.[0]?.message?.content)
+  } catch {
+    return json({ error: 'Empty response from OpenAI' }, 502)
+  }
 
   await supabase.from('llm_feedbacks').insert({
     user_id: user.id,

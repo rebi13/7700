@@ -1,4 +1,5 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts'
+import { buildEstimateUserMessage, parseEstimateResponse } from '../_shared/estimate-calories.logic.ts'
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -58,10 +59,6 @@ Deno.serve(async (req) => {
     })
   }
 
-  const userMessage = meal_type
-    ? `음식: ${food_name}, 식사 종류: ${meal_type}`
-    : `음식: ${food_name}`
-
   const openAIRes = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -74,7 +71,7 @@ Deno.serve(async (req) => {
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
+        { role: 'user', content: buildEstimateUserMessage(food_name, meal_type) },
       ],
     }),
   })
@@ -97,7 +94,15 @@ Deno.serve(async (req) => {
     })
   }
 
-  return new Response(content, {
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-  })
+  try {
+    const result = parseEstimateResponse(JSON.parse(content))
+    return new Response(JSON.stringify(result), {
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    })
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid OpenAI response format' }), {
+      status: 502,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    })
+  }
 })
