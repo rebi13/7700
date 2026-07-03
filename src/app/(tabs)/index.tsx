@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
@@ -14,14 +13,16 @@ import { useProfileStore } from '@/stores/profileStore'
 import { useGoalStore } from '@/stores/goalStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { useFeedbackStore } from '@/stores/feedbackStore'
+import { SkeletonCard } from '@/components/SkeletonCard'
+import { ErrorBanner } from '@/components/ErrorBanner'
 import { todayISO, formatDate } from '@/utils/date'
 
 export default function HomeScreen() {
   const { user } = useAuthStore()
   const { tdee } = useProfileStore()
   const { activeGoal, daysRemaining, dailyDeficit } = useGoalStore()
-  const { todaySummary, isLoading, calculateAndSave } = useSummaryStore()
-  const { dailyFeedback, isGenerating, generateDailyFeedback, fetchDailyFeedback } =
+  const { todaySummary, isLoading, error: summaryError, calculateAndSave } = useSummaryStore()
+  const { dailyFeedback, isGenerating, error: feedbackError, generateDailyFeedback, fetchDailyFeedback, clearError } =
     useFeedbackStore()
 
   const today = todayISO()
@@ -51,6 +52,7 @@ export default function HomeScreen() {
     targetLoss > 0 ? Math.min(100, Math.max(0, (estimatedLoss / targetLoss) * 100)) : 0
 
   const isDeltaPositive = delta >= 0
+  const error = summaryError ?? feedbackError
 
   return (
     <SafeAreaView style={s.safe}>
@@ -64,101 +66,104 @@ export default function HomeScreen() {
           <Text style={s.date}>{formatDate(today)}</Text>
         </View>
 
-        {isLoading && (
-          <ActivityIndicator style={s.loader} size="large" color="#3b82f6" />
-        )}
+        {error && <ErrorBanner message={error} onDismiss={clearError} />}
 
-        {/* 오늘 칼로리 카드 */}
-        <View style={s.card}>
-          <Text style={s.cardTitle}>오늘 칼로리</Text>
-          <View style={s.row3}>
-            <View style={s.statItem}>
-              <Text style={s.statLabel}>섭취</Text>
-              <Text style={s.statValue}>{intake.toLocaleString()}</Text>
-              <Text style={s.statUnit}>kcal</Text>
+        {isLoading ? (
+          <>
+            <SkeletonCard height={100} />
+            <SkeletonCard height={80} />
+            <SkeletonCard height={120} />
+          </>
+        ) : (
+          <>
+            {/* 오늘 칼로리 카드 */}
+            <View style={s.card}>
+              <Text style={s.cardTitle}>오늘 칼로리</Text>
+              <View style={s.row3}>
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>섭취</Text>
+                  <Text style={s.statValue}>{intake.toLocaleString()}</Text>
+                  <Text style={s.statUnit}>kcal</Text>
+                </View>
+                <View style={s.divider} />
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>운동 소모</Text>
+                  <Text style={[s.statValue, { color: '#10b981' }]}>{exercise.toLocaleString()}</Text>
+                  <Text style={s.statUnit}>kcal</Text>
+                </View>
+                <View style={s.divider} />
+                <View style={s.statItem}>
+                  <Text style={s.statLabel}>순 칼로리</Text>
+                  <Text style={s.statValue}>{net.toLocaleString()}</Text>
+                  <Text style={s.statUnit}>kcal</Text>
+                </View>
+              </View>
             </View>
-            <View style={s.divider} />
-            <View style={s.statItem}>
-              <Text style={s.statLabel}>운동 소모</Text>
-              <Text style={[s.statValue, { color: '#10b981' }]}>{exercise.toLocaleString()}</Text>
-              <Text style={s.statUnit}>kcal</Text>
-            </View>
-            <View style={s.divider} />
-            <View style={s.statItem}>
-              <Text style={s.statLabel}>순 칼로리</Text>
-              <Text style={s.statValue}>{net.toLocaleString()}</Text>
-              <Text style={s.statUnit}>kcal</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* 오늘 적자/초과 + TDEE 카드 */}
-        <View style={s.row2}>
-          <View style={[s.card, s.flex1]}>
-            <Text style={s.cardTitle}>오늘</Text>
-            <Text
-              style={[
-                s.bigValue,
-                { color: isDeltaPositive ? '#10b981' : '#ef4444' },
-              ]}
-            >
-              {isDeltaPositive ? '-' : '+'}
-              {Math.abs(delta).toLocaleString()}
-            </Text>
-            <Text style={s.bigUnit}>kcal {isDeltaPositive ? '적자' : '초과'}</Text>
-          </View>
+            {/* 오늘 적자/초과 + TDEE 카드 */}
+            <View style={s.row2}>
+              <View style={[s.card, s.flex1]}>
+                <Text style={s.cardTitle}>오늘</Text>
+                <Text style={[s.bigValue, { color: isDeltaPositive ? '#10b981' : '#ef4444' }]}>
+                  {isDeltaPositive ? '-' : '+'}
+                  {Math.abs(delta).toLocaleString()}
+                </Text>
+                <Text style={s.bigUnit}>kcal {isDeltaPositive ? '적자' : '초과'}</Text>
+              </View>
 
-          <View style={[s.card, s.flex1, s.ml8]}>
-            <Text style={s.cardTitle}>TDEE</Text>
-            <Text style={[s.bigValue, { color: '#6366f1' }]}>
-              {(tdee ?? 0).toLocaleString()}
-            </Text>
-            <Text style={s.bigUnit}>kcal / 일</Text>
-            {dailyDeficit !== null && (
-              <Text style={s.subNote}>목표 적자 {dailyDeficit.toLocaleString()} kcal</Text>
+              <View style={[s.card, s.flex1, s.ml8]}>
+                <Text style={s.cardTitle}>TDEE</Text>
+                <Text style={[s.bigValue, { color: '#6366f1' }]}>
+                  {(tdee ?? 0).toLocaleString()}
+                </Text>
+                <Text style={s.bigUnit}>kcal / 일</Text>
+                {dailyDeficit !== null && (
+                  <Text style={s.subNote}>목표 적자 {dailyDeficit.toLocaleString()} kcal</Text>
+                )}
+              </View>
+            </View>
+
+            {/* 목표 진행 카드 */}
+            {activeGoal && (
+              <View style={s.card}>
+                <Text style={s.cardTitle}>목표 진행</Text>
+
+                <View style={s.goalRow}>
+                  <View style={s.goalItem}>
+                    <Text style={s.goalLabel}>누적 적자</Text>
+                    <Text style={[s.goalValue, { color: cumulative >= 0 ? '#10b981' : '#ef4444' }]}>
+                      {cumulative >= 0 ? '' : '-'}{Math.abs(cumulative).toLocaleString()} kcal
+                    </Text>
+                  </View>
+                  <View style={s.goalItem}>
+                    <Text style={s.goalLabel}>예상 감량</Text>
+                    <Text style={[s.goalValue, { color: '#3b82f6' }]}>
+                      {estimatedLoss.toFixed(2)} kg
+                    </Text>
+                  </View>
+                  <View style={s.goalItem}>
+                    <Text style={s.goalLabel}>남은 기간</Text>
+                    <Text style={s.goalValue}>
+                      {daysRemaining !== null && daysRemaining > 0 ? `${daysRemaining}일` : '-'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={s.progressBg}>
+                  <View style={[s.progressFill, { width: `${progressPct}%` as any }]} />
+                </View>
+                <View style={s.progressLabel}>
+                  <Text style={s.progressText}>
+                    {activeGoal.start_weight_kg} kg → {activeGoal.target_weight_kg} kg
+                  </Text>
+                  <Text style={s.progressText}>{progressPct.toFixed(1)}%</Text>
+                </View>
+              </View>
             )}
-          </View>
-        </View>
-
-        {/* 목표 진행 카드 */}
-        {activeGoal && (
-          <View style={s.card}>
-            <Text style={s.cardTitle}>목표 진행</Text>
-
-            <View style={s.goalRow}>
-              <View style={s.goalItem}>
-                <Text style={s.goalLabel}>누적 적자</Text>
-                <Text style={[s.goalValue, { color: cumulative >= 0 ? '#10b981' : '#ef4444' }]}>
-                  {cumulative >= 0 ? '' : '-'}{Math.abs(cumulative).toLocaleString()} kcal
-                </Text>
-              </View>
-              <View style={s.goalItem}>
-                <Text style={s.goalLabel}>예상 감량</Text>
-                <Text style={[s.goalValue, { color: '#3b82f6' }]}>
-                  {estimatedLoss.toFixed(2)} kg
-                </Text>
-              </View>
-              <View style={s.goalItem}>
-                <Text style={s.goalLabel}>남은 기간</Text>
-                <Text style={s.goalValue}>
-                  {daysRemaining !== null && daysRemaining > 0 ? `${daysRemaining}일` : '-'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={s.progressBg}>
-              <View style={[s.progressFill, { width: `${progressPct}%` as any }]} />
-            </View>
-            <View style={s.progressLabel}>
-              <Text style={s.progressText}>
-                {activeGoal.start_weight_kg} kg → {activeGoal.target_weight_kg} kg
-              </Text>
-              <Text style={s.progressText}>{progressPct.toFixed(1)}%</Text>
-            </View>
-          </View>
+          </>
         )}
 
-        {/* AI 피드백 카드 */}
+        {/* AI 피드백 카드 — 로딩과 무관하게 항상 표시 */}
         <View style={s.card}>
           <View style={s.feedbackHeader}>
             <Text style={s.cardTitle}>오늘의 AI 피드백</Text>
@@ -171,17 +176,16 @@ export default function HomeScreen() {
               </TouchableOpacity>
             )}
           </View>
-          {dailyFeedback ? (
+          {isGenerating ? (
+            <SkeletonCard rows={3} />
+          ) : dailyFeedback ? (
             <Text style={s.feedbackText}>{dailyFeedback.feedback}</Text>
           ) : (
             <TouchableOpacity
-              style={[s.feedbackBtn, isGenerating && s.feedbackBtnDisabled]}
+              style={s.feedbackBtn}
               onPress={() => generateDailyFeedback(today)}
-              disabled={isGenerating}
             >
-              <Text style={s.feedbackBtnText}>
-                {isGenerating ? '피드백 생성 중...' : '✨ AI 피드백 받기'}
-              </Text>
+              <Text style={s.feedbackBtnText}>✨ AI 피드백 받기</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -198,7 +202,6 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#f8fafc' },
   scroll: { padding: 20, paddingBottom: 40 },
-  loader: { marginVertical: 16 },
 
   header: {
     flexDirection: 'row',
@@ -263,7 +266,6 @@ const s = StyleSheet.create({
     backgroundColor: '#6366f1',
     alignItems: 'center',
   },
-  feedbackBtnDisabled: { opacity: 0.5 },
   feedbackBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 
   refreshBtn: {
