@@ -6,9 +6,14 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#E6F4FE"
+    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.7700",
+      "bundleIdentifier": "com.diet7700.app",
       "infoPlist": {
         "NSHealthShareUsageDescription": "운동 및 체중 데이터를 가져와 칼로리 계산에 활용합니다.",
         "NSHealthUpdateUsageDescription": "칼로리 목표 달성 데이터를 Apple Health에 기록합니다."
