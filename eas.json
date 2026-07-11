@@ -14,15 +14,11 @@
     "preview": {
       "distribution": "internal",
       "ios": {
-        "simulator": false,
-        "bundleIdentifier": "com.diet7700.app"
+        "simulator": false
       }
     },
     "production": {
-      "distribution": "store",
-      "ios": {
-        "bundleIdentifier": "com.diet7700.app"
-      }
+      "distribution": "store"
     }
   },
   "submit": {

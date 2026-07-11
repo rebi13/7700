@@ -36,6 +36,13 @@
       "expo-router",
       "@react-native-community/datetimepicker",
       "react-native-health"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f886de8d-b2f1-433d-8c79-951158afc412"
+      }
+    },
+    "owner": "rebi_13"
   }
 }
