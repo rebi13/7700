@@ -16,7 +16,6 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useFocusEffect } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useGoalStore } from '@/stores/goalStore'
@@ -57,26 +56,12 @@ const ACTIVITY_LEVELS: { value: ActivityLevel; label: string }[] = [
   { value: 'very_active', label: '매우 활발' },
 ]
 
-function parseDateStr(iso: string): Date {
-  const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y, m - 1, d)
-}
-
-function dateToISO(d: Date): string {
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-')
-}
-
 // ─── 프로필 수정 모달 ──────────────────────────────────────────────────────────
 
 function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { profile, updateProfile, isLoading, error, clearError } = useProfileStore()
   const { addLog } = useWeightStore()
   const { calculateAndSave } = useSummaryStore()
-  const [birthDate, setBirthDate] = useState(new Date(1990, 0, 1))
 
   const heightRef = useRef<TextInput>(null)
   const weightRef = useRef<TextInput>(null)
@@ -96,8 +81,6 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
   useEffect(() => {
     if (visible && profile) {
       clearError()
-      const bd = parseDateStr(profile.birth_date)
-      setBirthDate(bd)
       reset({
         heightCm: profile.height_cm,
         currentWeightKg: profile.current_weight_kg,
@@ -107,16 +90,6 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
       })
     }
   }, [visible, profile, reset, clearError])
-
-  const handleBirthDateChange = useCallback(
-    (_: DateTimePickerEvent, date?: Date) => {
-      if (date) {
-        setBirthDate(date)
-        setValue('birthDate', dateToISO(date), { shouldValidate: true })
-      }
-    },
-    [setValue]
-  )
 
   const onSubmit = async (data: ProfileFormData) => {
     Keyboard.dismiss()
@@ -208,16 +181,20 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
             )}
 
             <Text style={ms.label}>생년월일 *</Text>
-            <View style={ms.dateWrapper}>
-              <DateTimePicker
-                value={birthDate}
-                mode="date"
-                display="compact"
-                maximumDate={new Date()}
-                onChange={handleBirthDateChange}
-                locale="ko-KR"
-              />
-            </View>
+            <Controller
+              control={control}
+              name="birthDate"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput
+                  style={ms.input}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="YYYY-MM-DD"
+                  returnKeyType="done"
+                />
+              )}
+            />
             {errors.birthDate && <Text style={ms.error}>{errors.birthDate.message}</Text>}
 
             <Text style={ms.label}>성별 *</Text>
@@ -262,9 +239,6 @@ function ProfileEditModal({ visible, onClose }: { visible: boolean; onClose: () 
 
 function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { activeGoal, updateGoal, isLoading, error, clearError } = useGoalStore()
-  const [targetDate, setTargetDate] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() + 3); return d
-  })
 
   const targetWeightRef = useRef<TextInput>(null)
 
@@ -279,24 +253,12 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
   useEffect(() => {
     if (visible && activeGoal) {
       clearError()
-      const td = parseDateStr(activeGoal.target_date)
-      setTargetDate(td)
       reset({
         targetWeightKg: activeGoal.target_weight_kg,
         targetDate: activeGoal.target_date,
       })
     }
   }, [visible, activeGoal, reset, clearError])
-
-  const handleTargetDateChange = useCallback(
-    (_: DateTimePickerEvent, date?: Date) => {
-      if (date) {
-        setTargetDate(date)
-        setValue('targetDate', dateToISO(date), { shouldValidate: true })
-      }
-    },
-    [setValue]
-  )
 
   const onSubmit = async (data: GoalFormData) => {
     Keyboard.dismiss()
@@ -354,16 +316,20 @@ function GoalEditModal({ visible, onClose }: { visible: boolean; onClose: () => 
             )}
 
             <Text style={ms.label}>목표일 *</Text>
-            <View style={ms.dateWrapper}>
-              <DateTimePicker
-                value={targetDate}
-                mode="date"
-                display="compact"
-                minimumDate={new Date()}
-                onChange={handleTargetDateChange}
-                locale="ko-KR"
-              />
-            </View>
+            <Controller
+              control={control}
+              name="targetDate"
+              render={({ field: { value, onChange, onBlur } }) => (
+                <TextInput
+                  style={ms.input}
+                  value={value}
+                  onChangeText={onChange}
+                  onBlur={onBlur}
+                  placeholder="YYYY-MM-DD"
+                  returnKeyType="done"
+                />
+              )}
+            />
             {errors.targetDate && <Text style={ms.error}>{errors.targetDate.message}</Text>}
           </ScrollView>
         </KeyboardAvoidingView>
@@ -575,16 +541,6 @@ const ms = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
   error: { fontSize: 12, color: '#ef4444', marginTop: 4 },
-
-  dateWrapper: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fafafa',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    alignItems: 'flex-start',
-  },
 
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   chip: {

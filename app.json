@@ -34,9 +34,7 @@
     },
     "scheme": "7700",
     "plugins": [
-      "expo-router",
-      "@react-native-community/datetimepicker",
-      "react-native-health"
+      "expo-router"
     ],
     "extra": {
       "router": {},
