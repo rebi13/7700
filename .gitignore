@@ -9,7 +9,7 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Native (웹 전용 프로젝트이지만 호환성을 위해 유지)
 .kotlin/
 *.orig.*
 *.jks
@@ -37,6 +37,6 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
+# generated native folders (웹 전용 프로젝트이지만 호환성을 위해 유지)
 /ios
 /android
