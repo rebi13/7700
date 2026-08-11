@@ -34,6 +34,9 @@ yarn-error.*
 .env
 .env*.local
 
+# temporary files
+TODO.md
+
 # typescript
 *.tsbuildinfo
 
