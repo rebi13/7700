@@ -19,8 +19,8 @@
 프로젝트 루트에 `.env` 파일을 생성하고 다음 내용을 입력하세요:
 
 ```bash
-EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
-EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 Supabase 프로젝트 설정은 [개발 가이드](docs/개발-가이드.md#-supabase-설정)를 참고하세요.
@@ -32,7 +32,7 @@ Supabase 프로젝트 설정은 [개발 가이드](docs/개발-가이드.md#-sup
 npm install
 
 # 개발 서버 실행
-npm run web
+npm run dev
 ```
 
 브라우저에서 http://localhost:8081 접속
@@ -50,12 +50,12 @@ npm test:watch
 ## 기술 스택
 
 ### 프론트엔드
-- **Expo** (v53) + **React Native Web**
-- **React** 19.0 + **TypeScript** 5.6
-- **Expo Router** (파일 기반 라우팅)
+- **Vite** (v8) + **React** 19.0 + **TypeScript** 5.6
+- **TanStack Router** (코드 기반 라우팅)
+- **Tailwind CSS** v4 + **shadcn/ui**
 - **Zustand** (상태 관리)
 - **React Hook Form** + **Zod** (폼 검증)
-- **react-native-gifted-charts** (차트)
+- **Recharts** (차트)
 
 ### 백엔드
 - **Supabase** (PostgreSQL, Auth, Edge Functions)
@@ -72,16 +72,20 @@ npm test:watch
 ```
 7700/
 ├── src/
-│   ├── app/                    # Expo Router 라우트
-│   │   ├── (auth)/            # 로그인/회원가입
-│   │   ├── (onboarding)/      # 온보딩 (프로필/목표)
-│   │   └── (tabs)/            # 메인 탭 (홈/기록/통계/설정)
-│   ├── components/            # 공통 컴포넌트
-│   ├── lib/                   # Supabase, AI 클라이언트
+│   ├── router.tsx             # TanStack Router 라우트 트리
+│   ├── index.css              # Tailwind v4 + 테마 토큰
+│   ├── routes/                # 레이아웃 및 여러 도메인을 조합하는 화면
+│   ├── features/              # 도메인별 화면·폼·차트
+│   │   ├── auth/  onboarding/  goal/  dashboard/
+│   │   └── meal/  exercise/  weight/  ai-log/  stats/
+│   ├── components/
+│   │   └── ui/                # shadcn/ui 생성 컴포넌트
+│   ├── lib/                   # Supabase 클라이언트, 유틸
 │   ├── schemas/               # Zod 검증 스키마
 │   ├── stores/                # Zustand 스토어
 │   ├── types/                 # TypeScript 타입
 │   └── utils/                 # 유틸리티 (계산, 날짜)
+├── public/                    # 정적 파일
 ├── supabase/
 │   └── functions/             # Edge Functions
 │       ├── estimate-calories/
@@ -118,14 +122,15 @@ vercel
 
 ### Netlify
 ```bash
-npx expo export:web
-# web-build 폴더를 Netlify에 업로드
+npm run build
+# dist 폴더를 Netlify에 업로드 (SPA 폴백 리라이트 필요)
 ```
 
 ## 개발 히스토리
 
 - **개발 기간**: 2026-06-23 ~ 2026-07-11 (19일)
 - **웹 전환**: 2026-08-08
+- **React Native 의존성 완전 제거**: 2026-08-17 (Vite + TanStack Router + Tailwind/shadcn 이관)
 - **자동화 테스트**: Jest 51개 통과
 - **네이티브 버전**: `native` 브랜치에 백업
 
