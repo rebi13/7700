@@ -14,6 +14,7 @@ interface SummaryState {
   fetchSummary: (date: string) => Promise<void>
   calculateAndSave: (date: string) => Promise<void>
   fetchRecentSummaries: (days?: number) => Promise<void>
+  clearError: () => void
 }
 
 export const useSummaryStore = create<SummaryState>((set) => ({
@@ -118,4 +119,6 @@ export const useSummaryStore = create<SummaryState>((set) => ({
     }
     set({ recentSummaries: data ?? [], isLoading: false })
   },
+
+  clearError: () => set({ error: null }),
 }))

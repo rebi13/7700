@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
+import { resolveFunctionError } from '@/lib/functions'
 
 export interface EstimateResult {
   calories: number
@@ -26,7 +27,10 @@ export const useAiStore = create<AiState>((set) => ({
       body: { food_name: foodName, meal_type: mealType },
     })
     if (error || !data) {
-      set({ isEstimating: false, error: error?.message ?? '추정 실패' })
+      set({
+        isEstimating: false,
+        error: await resolveFunctionError(error, '추정 실패'),
+      })
       return null
     }
     set({ isEstimating: false })

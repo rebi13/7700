@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
+import { resolveFunctionError } from '@/lib/functions'
 import type { LlmFeedbackRow } from '@/types/database'
 
 interface FeedbackState {
@@ -39,7 +40,10 @@ export const useFeedbackStore = create<FeedbackState>((set) => ({
       body: { target_date: date },
     })
     if (error || !data?.feedback) {
-      set({ isGenerating: false, error: error?.message ?? '피드백 생성 실패' })
+      set({
+        isGenerating: false,
+        error: await resolveFunctionError(error, '피드백 생성 실패'),
+      })
       return
     }
     const { data: row } = await supabase
@@ -67,7 +71,10 @@ export const useFeedbackStore = create<FeedbackState>((set) => ({
       body: { target_date: date },
     })
     if (error || !data?.feedback) {
-      set({ isGeneratingWeekly: false, error: error?.message ?? '주간 피드백 생성 실패' })
+      set({
+        isGeneratingWeekly: false,
+        error: await resolveFunctionError(error, '주간 피드백 생성 실패'),
+      })
       return
     }
     const { data: row } = await supabase

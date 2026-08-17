@@ -29,6 +29,7 @@ export function HomePage() {
     isLoading,
     error: summaryError,
     calculateAndSave,
+    clearError: clearSummaryError,
   } = useSummaryStore()
   const {
     dailyFeedback,
@@ -36,7 +37,7 @@ export function HomePage() {
     error: feedbackError,
     generateDailyFeedback,
     fetchDailyFeedback,
-    clearError,
+    clearError: clearFeedbackError,
   } = useFeedbackStore()
 
   const today = todayISO()
@@ -62,7 +63,9 @@ export function HomePage() {
       : 0
 
   const isDeltaPositive = delta >= 0
+  // 배너를 띄운 쪽의 에러를 지워야 닫기가 실제로 동작한다.
   const error = summaryError ?? feedbackError
+  const clearError = summaryError ? clearSummaryError : clearFeedbackError
 
   return (
     <div className="flex flex-col gap-3 p-4 sm:p-6">

@@ -98,7 +98,7 @@ export function ProfileFields({ form }: { form: UseFormReturn<ProfileFormData> }
             <FormLabel>활동 수준 *</FormLabel>
             <FormControl>
               <RadioGroup
-                value={field.value}
+                value={field.value ?? ''}
                 onValueChange={field.onChange}
                 className="gap-2"
               >

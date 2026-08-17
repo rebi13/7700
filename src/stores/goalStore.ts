@@ -49,7 +49,8 @@ export const useGoalStore = create<GoalState>((set, get) => ({
       .eq('is_active', true)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      // 목표가 없는 사용자도 정상 흐름이므로 single() 의 406 대신 null 을 받는다.
+      .maybeSingle()
 
     if (error || !data) {
       set({ activeGoal: null, goalChecked: true, daysRemaining: null, dailyDeficit: null, isLoading: false })
