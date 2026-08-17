@@ -1,5 +1,3 @@
-import { StyleSheet, Text, View } from 'react-native'
-
 interface Props {
   message: string
   sub?: string
@@ -7,15 +5,9 @@ interface Props {
 
 export function EmptyState({ message, sub }: Props) {
   return (
-    <View style={s.container}>
-      <Text style={s.message}>{message}</Text>
-      {sub && <Text style={s.sub}>{sub}</Text>}
-    </View>
+    <div className="flex flex-col items-center gap-1 py-8 text-center">
+      <p className="text-sm font-medium text-muted-foreground">{message}</p>
+      {sub && <p className="text-xs text-muted-foreground/70">{sub}</p>}
+    </div>
   )
 }
-
-const s = StyleSheet.create({
-  container: { alignItems: 'center', paddingVertical: 32 },
-  message: { fontSize: 14, color: '#94a3b8', fontWeight: '500' },
-  sub: { fontSize: 12, color: '#cbd5e1', marginTop: 4 },
-})

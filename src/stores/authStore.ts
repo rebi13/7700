@@ -15,6 +15,9 @@ interface AuthState {
   clearError: () => void
 }
 
+// StrictMode 의 이펙트 이중 실행으로 onAuthStateChange 구독이 중복되지 않도록 한다.
+let authSubscribed = false
+
 export const useAuthStore = create<AuthState>((set) => ({
   session: null,
   user: null,
@@ -23,6 +26,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   error: null,
 
   initialize: async () => {
+    if (authSubscribed) return
+    authSubscribed = true
+
     const {
       data: { session },
     } = await supabase.auth.getSession()
