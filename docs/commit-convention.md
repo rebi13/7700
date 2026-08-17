@@ -58,7 +58,7 @@ feat(onboarding): 프로필 입력 화면 및 BMR/TDEE 계산 구현
 - 커밋은 **하나의 논리적 변경** 단위로 작성
 - 타입과 제목 사이 콜론 뒤 공백 1개
 - 제목 첫 글자 소문자 (타입 제외)
-- Co-Author 태그는 항상 포함:
+- Co-Author 태그는 항상 포함. 실제 작업한 모델 이름을 적는다:
   ```
-  Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
+  Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>
   ```
