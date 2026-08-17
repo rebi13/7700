@@ -22,8 +22,8 @@ yarn-error.*
 .env
 .env*.local
 
-# temporary files
-TODO.md
+# temporary files (TODO 는 로컬 작업 메모로만 사용)
+TODO*.md
 
 # typescript
 *.tsbuildinfo
