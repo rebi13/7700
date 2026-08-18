@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { Sparkles } from 'lucide-react'
+import { useAuthStore } from '@/stores/authStore'
 import { useWeightStore } from '@/stores/weightStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { useFeedbackStore } from '@/stores/feedbackStore'
@@ -24,6 +25,7 @@ import { getWeekRange } from '../../../supabase/functions/_shared/weekly-feedbac
 const shortDate = (iso: string) => iso.slice(5).replace('-', '/')
 
 export function StatsPage() {
+  const userId = useAuthStore((st) => st.user?.id)
   const {
     logs: weightLogs,
     fetchRecentLogs,
@@ -46,11 +48,13 @@ export function StatsPage() {
   const today = todayISO()
   const { weekStart } = getWeekRange(today)
 
+  // 세션 복원 전에는 스토어가 빈손으로 돌아오므로 userId 가 생긴 뒤에 부른다.
   useEffect(() => {
+    if (!userId) return
     fetchRecentLogs(30)
     fetchRecentSummaries(30)
     fetchWeeklyFeedback(weekStart)
-  }, [fetchRecentLogs, fetchRecentSummaries, fetchWeeklyFeedback, weekStart])
+  }, [userId, fetchRecentLogs, fetchRecentSummaries, fetchWeeklyFeedback, weekStart])
 
   const isLoading = weightLoading || summaryLoading
 

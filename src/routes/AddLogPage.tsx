@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useAuthStore } from '@/stores/authStore'
 import { useMealStore } from '@/stores/mealStore'
 import { useExerciseStore } from '@/stores/exerciseStore'
 import { useWeightStore } from '@/stores/weightStore'
@@ -29,6 +30,7 @@ const TABS: { value: TabType; label: string }[] = [
 ]
 
 export function AddLogPage() {
+  const userId = useAuthStore((st) => st.user?.id)
   const [activeTab, setActiveTab] = useState<TabType>('meal')
   const [selectedDate, setSelectedDate] = useState(todayISO())
 
@@ -44,11 +46,20 @@ export function AddLogPage() {
   const [editingExercise, setEditingExercise] = useState<ExerciseLogRow | null>(null)
   const [editingWeight, setEditingWeight] = useState<WeightLogRow | null>(null)
 
+  // 세션 복원 전에는 스토어가 빈손으로 돌아오므로 userId 가 생긴 뒤에 부른다.
   useEffect(() => {
+    if (!userId) return
     if (activeTab === 'meal') fetchMealLogs(selectedDate)
     else if (activeTab === 'exercise') fetchExerciseLogs(selectedDate)
     else fetchWeightLogs(selectedDate)
-  }, [activeTab, selectedDate, fetchMealLogs, fetchExerciseLogs, fetchWeightLogs])
+  }, [
+    userId,
+    activeTab,
+    selectedDate,
+    fetchMealLogs,
+    fetchExerciseLogs,
+    fetchWeightLogs,
+  ])
 
   const handleDelete = useCallback(
     async (id: string, type: TabType) => {

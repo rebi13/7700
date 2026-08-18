@@ -41,11 +41,19 @@ export function HomePage() {
   } = useFeedbackStore()
 
   const today = todayISO()
+  const userId = user?.id
+
+  // 스토어는 userId·tdee 가 없으면 조용히 빠져나간다. 세션 복원과 프로필 조회는
+  // AuthGuard 가 비동기로 처리하므로, 준비된 뒤에 다시 부르도록 의존성에 넣는다.
+  useEffect(() => {
+    if (!userId) return
+    fetchDailyFeedback(today)
+  }, [userId, fetchDailyFeedback, today])
 
   useEffect(() => {
+    if (!userId || tdee === null) return
     calculateAndSave(today)
-    fetchDailyFeedback(today)
-  }, [calculateAndSave, fetchDailyFeedback, today])
+  }, [userId, tdee, calculateAndSave, today])
 
   const intake = todaySummary?.total_intake_calories ?? 0
   const exercise = todaySummary?.total_exercise_calories ?? 0
