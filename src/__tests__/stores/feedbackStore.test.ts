@@ -6,10 +6,16 @@ const mockEq = jest.fn()
 const mockMaybeSingle = jest.fn()
 const mockInsert = jest.fn()
 
+/** 조회에 쓰인 .eq() 인자를 기록해 어떤 조건으로 찾았는지 확인한다 */
+const eqCalls: unknown[][] = []
+
 const buildChain = () => {
   const chain = {
     select: () => chain,
-    eq: (..._args: unknown[]) => chain,
+    eq: (...args: unknown[]) => {
+      eqCalls.push(args)
+      return chain
+    },
     maybeSingle: mockMaybeSingle,
     insert: mockInsert,
   }
@@ -41,6 +47,7 @@ beforeEach(() => {
   mockInvoke.mockReset()
   mockMaybeSingle.mockReset()
   mockInsert.mockReset()
+  eqCalls.length = 0
   buildChain()
 })
 
@@ -141,5 +148,43 @@ describe('generateWeeklyFeedback', () => {
     expect(useFeedbackStore.getState().isGeneratingWeekly).toBe(false)
     expect(useFeedbackStore.getState().error).toBe('Weekly error')
     expect(useFeedbackStore.getState().weeklyFeedback).toBeNull()
+  })
+})
+
+describe('주간 피드백의 조회 날짜', () => {
+  /**
+   * 회귀 방지: Edge Function 은 주 시작일(월요일)로 저장하는데 스토어가 넘겨받은
+   * 날짜 그대로 다시 조회해, 월요일이 아닌 날에는 생성해도 화면이 비어 있었다.
+   * 함수는 200 으로 성공하고 조회만 빗나가니 오류도 뜨지 않았다.
+   */
+  it('생성 뒤에는 넘긴 날짜가 아니라 그 주의 월요일로 다시 조회한다', async () => {
+    mockInvoke.mockResolvedValue({ data: { feedback: '이번 주도 좋았어요' }, error: null })
+    mockMaybeSingle.mockResolvedValue({ data: null })
+
+    // 2026-08-18 은 화요일 → 주 시작일은 2026-08-17
+    await useFeedbackStore.getState().generateWeeklyFeedback('2026-08-18')
+
+    expect(mockInvoke).toHaveBeenCalledWith('generate-weekly-feedback', {
+      body: { target_date: '2026-08-18' },
+    })
+    expect(eqCalls).toContainEqual(['target_date', '2026-08-17'])
+    expect(eqCalls).not.toContainEqual(['target_date', '2026-08-18'])
+  })
+
+  it('월요일에 불러도 같은 날짜로 조회한다', async () => {
+    mockInvoke.mockResolvedValue({ data: { feedback: '한 주 시작' }, error: null })
+    mockMaybeSingle.mockResolvedValue({ data: null })
+
+    await useFeedbackStore.getState().generateWeeklyFeedback('2026-08-17')
+
+    expect(eqCalls).toContainEqual(['target_date', '2026-08-17'])
+  })
+
+  it('fetchWeeklyFeedback 은 받은 주 시작일을 그대로 쓴다', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null })
+
+    await useFeedbackStore.getState().fetchWeeklyFeedback('2026-08-17')
+
+    expect(eqCalls).toContainEqual(['target_date', '2026-08-17'])
   })
 })

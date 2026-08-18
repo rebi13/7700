@@ -31,3 +31,13 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+테스트는 두 프로젝트로 나뉩니다.
+
+- `logic` (node) — `src/__tests__/**/*.test.ts` · 순수 로직과 스토어
+- `ui` (jsdom) — `src/__tests__/**/*.test.tsx` · Testing Library 컴포넌트 테스트
+
+한쪽만 돌리려면 `npx jest --selectProjects ui` 를 씁니다.
+확장자로 환경이 갈리므로 컴포넌트 테스트는 반드시 `.test.tsx` 로 만듭니다.
+스토어를 쓰는 컴포넌트는 `jest.mock('@/lib/supabase', ...)` 로 supabase 를 막습니다
+(`import.meta.env` 를 읽어 CJS 로 도는 Jest 에서 로드되지 않습니다).
