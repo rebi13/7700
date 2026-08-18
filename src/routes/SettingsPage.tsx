@@ -16,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { confirmAction } from '@/lib/dom'
+import { confirmAction } from '@/components/ConfirmDialog'
 
 export function SettingsPage() {
   const { signOut } = useAuthStore()
@@ -47,8 +47,13 @@ export function SettingsPage() {
     fetchActiveGoal()
   }, [fetchProfile, fetchActiveGoal])
 
-  const handleLogout = useCallback(() => {
-    if (confirmAction('로그아웃', '정말 로그아웃하시겠습니까?')) signOut()
+  const handleLogout = useCallback(async () => {
+    const ok = await confirmAction({
+      title: '로그아웃',
+      description: '정말 로그아웃하시겠습니까?',
+      confirmLabel: '로그아웃',
+    })
+    if (ok) signOut()
   }, [signOut])
 
   const combinedError = profileError ?? goalError

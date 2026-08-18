@@ -5,7 +5,8 @@ import { useWeightStore } from '@/stores/weightStore'
 import { WeightFields } from '@/features/weight/WeightFields'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
-import { blurActiveElement, notify } from '@/lib/dom'
+import { blurActiveElement } from '@/lib/dom'
+import { toast } from '@/lib/toast'
 
 export function WeightForm({ date }: { date: string }) {
   const { addLog, isLoading } = useWeightStore()
@@ -21,12 +22,12 @@ export function WeightForm({ date }: { date: string }) {
 
     const { error } = useWeightStore.getState()
     if (error) {
-      notify('오류', error)
+      toast.error(error)
       return
     }
 
     form.reset({ weight_date: date, measured_timing: null })
-    notify('저장 완료', '체중 기록이 저장되었습니다.')
+    toast.success('체중 기록이 저장되었습니다')
   }
 
   return (

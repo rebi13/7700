@@ -19,6 +19,8 @@
   하드코딩된 hex 값을 넣지 마세요.
 - 화면·폼·차트는 도메인별로 `src/features/<domain>/` 에 둡니다.
   여러 도메인을 조합하는 화면과 레이아웃만 `src/routes/` 에 둡니다.
+- 알림은 `toast` (`src/lib/toast.ts`), 확인/취소는 `confirmAction` (`src/components/ConfirmDialog.tsx`) 을 씁니다.
+  `window.alert` · `window.confirm` 은 스레드를 막고 앱 디자인과 겉돌므로 쓰지 않습니다.
 - 환경 변수는 `VITE_` 접두사를 쓰고 `import.meta.env` 로 읽습니다.
 - 커밋 규칙은 `docs/commit-convention.md` 를 따릅니다.
 

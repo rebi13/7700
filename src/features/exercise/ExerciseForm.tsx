@@ -6,7 +6,8 @@ import { useSummaryStore } from '@/stores/summaryStore'
 import { ExerciseFields } from '@/features/exercise/ExerciseFields'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
-import { blurActiveElement, notify } from '@/lib/dom'
+import { blurActiveElement } from '@/lib/dom'
+import { toast } from '@/lib/toast'
 
 export function ExerciseForm({ date }: { date: string }) {
   const { addLog, isLoading } = useExerciseStore()
@@ -22,13 +23,13 @@ export function ExerciseForm({ date }: { date: string }) {
 
     const { error } = useExerciseStore.getState()
     if (error) {
-      notify('오류', error)
+      toast.error(error)
       return
     }
 
     await useSummaryStore.getState().calculateAndSave(date)
     form.reset({ exercise_date: date })
-    notify('저장 완료', '운동 기록이 저장되었습니다.')
+    toast.success('운동 기록이 저장되었습니다')
   }
 
   return (

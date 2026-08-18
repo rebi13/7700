@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { notify } from '@/lib/dom'
+import { toast } from '@/lib/toast'
 
 interface Props {
   open: boolean
@@ -43,7 +43,7 @@ export function GoalEditSheet({ open, onClose }: Props) {
     if (useGoalStore.getState().error) return
 
     onClose()
-    notify('저장 완료', '목표가 업데이트되었습니다.')
+    toast.success('목표가 업데이트되었습니다')
   }
 
   return (

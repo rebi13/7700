@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
 import { useAiStore, type EstimateResult } from '@/stores/aiStore'
-import { notify } from '@/lib/dom'
+import { toast } from '@/lib/toast'
 
 export interface AiNote {
   text: string
@@ -22,7 +22,9 @@ export function useCalorieEstimate() {
 
       const result = await estimateCalories(foodName, mealType)
       if (!result) {
-        notify('AI 추정 실패', 'AI 추정에 실패했습니다. 직접 입력해 주세요.')
+        // 스토어가 이미 오류 코드를 한국어 안내로 옮겨두므로 그대로 보여준다.
+        const { error } = useAiStore.getState()
+        toast.error(error ?? 'AI 추정에 실패했습니다. 직접 입력해 주세요.')
         return null
       }
 

@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { confirmAction } from '@/lib/dom'
+import { confirmAction } from '@/components/ConfirmDialog'
 import { todayISO } from '@/utils/date'
 import type { ExerciseLogRow, MealLogRow, WeightLogRow } from '@/types/database'
 
@@ -52,7 +52,13 @@ export function AddLogPage() {
 
   const handleDelete = useCallback(
     async (id: string, type: TabType) => {
-      if (!confirmAction('삭제', '이 기록을 삭제하시겠습니까?')) return
+      const ok = await confirmAction({
+        title: '기록 삭제',
+        description: '이 기록을 삭제하시겠습니까? 되돌릴 수 없습니다.',
+        confirmLabel: '삭제',
+        destructive: true,
+      })
+      if (!ok) return
 
       if (type === 'meal') {
         await deleteMealLog(id)

@@ -9,7 +9,7 @@ import { ProfileFields } from '@/features/onboarding/ProfileFields'
 import { EditSheet } from '@/components/EditSheet'
 import { ErrorBanner } from '@/components/ErrorBanner'
 import { Form } from '@/components/ui/form'
-import { notify } from '@/lib/dom'
+import { toast } from '@/lib/toast'
 import { todayISO } from '@/utils/date'
 
 interface Props {
@@ -60,7 +60,7 @@ export function ProfileEditSheet({ open, onClose }: Props) {
     }
 
     onClose()
-    notify('저장 완료', '프로필이 업데이트되었습니다.')
+    toast.success('프로필이 업데이트되었습니다')
   }
 
   return (

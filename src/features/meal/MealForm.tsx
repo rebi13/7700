@@ -7,7 +7,8 @@ import { useCalorieEstimate } from '@/features/ai-log/useCalorieEstimate'
 import { MealFields } from '@/features/meal/MealFields'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
-import { blurActiveElement, notify } from '@/lib/dom'
+import { blurActiveElement } from '@/lib/dom'
+import { toast } from '@/lib/toast'
 
 export function MealForm({ date }: { date: string }) {
   const { addLog, isLoading } = useMealStore()
@@ -24,14 +25,14 @@ export function MealForm({ date }: { date: string }) {
 
     const { error } = useMealStore.getState()
     if (error) {
-      notify('오류', error)
+      toast.error(error)
       return
     }
 
     await useSummaryStore.getState().calculateAndSave(date)
     form.reset({ meal_date: date, meal_type: undefined })
     ai.reset()
-    notify('저장 완료', '식사 기록이 저장되었습니다.')
+    toast.success('식사 기록이 저장되었습니다')
   }
 
   return (
