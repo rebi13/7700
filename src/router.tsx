@@ -2,6 +2,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
   Outlet,
   redirect,
 } from '@tanstack/react-router'
@@ -14,7 +15,7 @@ import { SignUpPage } from '@/features/auth/SignUpPage'
 import { ProfilePage } from '@/features/onboarding/ProfilePage'
 import { GoalPage } from '@/features/goal/GoalPage'
 import { HomePage } from '@/features/dashboard/HomePage'
-import { StatsPage } from '@/features/stats/StatsPage'
+import { SkeletonCard } from '@/components/SkeletonCard'
 
 const rootRoute = createRootRoute({ component: RootLayout })
 
@@ -73,10 +74,15 @@ const addLogRoute = createRoute({
   component: AddLogPage,
 })
 
+// 통계 화면만 따로 떼어 낸다. Recharts 가 번들의 절반이 넘는데
+// 로그인 화면에서까지 같이 내려받을 이유가 없다.
 const statsRoute = createRoute({
   getParentRoute: () => tabsRoute,
   path: '/stats',
-  component: StatsPage,
+  component: lazyRouteComponent(
+    () => import('@/features/stats/StatsPage'),
+    'StatsPage'
+  ),
 })
 
 const settingsRoute = createRoute({
@@ -94,6 +100,14 @@ const routeTree = rootRoute.addChildren([
 
 export const router = createRouter({
   routeTree,
+  // 탭에 포인터가 닿으면 미리 받아둔다. 눌렀을 때 기다릴 일이 거의 없다.
+  defaultPreload: 'intent',
+  defaultPendingComponent: () => (
+    <div className="flex flex-col gap-3 p-4 sm:p-6">
+      <SkeletonCard height={220} />
+      <SkeletonCard height={220} />
+    </div>
+  ),
   defaultNotFoundComponent: () => {
     throw redirect({ to: '/' })
   },
