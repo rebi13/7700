@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '@/lib/supabase'
 import { resolveFunctionError } from '@/lib/functions'
+import { getWeekRange } from '../../supabase/functions/_shared/weekly-feedback.logic'
 import type { LlmFeedbackRow } from '@/types/database'
 
 interface FeedbackState {
@@ -77,10 +78,12 @@ export const useFeedbackStore = create<FeedbackState>((set) => ({
       })
       return
     }
+    // Edge Function 은 주 시작일(월요일)로 저장하므로 넘긴 날짜 그대로 찾으면 못 만난다.
+    const { weekStart } = getWeekRange(date)
     const { data: row } = await supabase
       .from('llm_feedbacks')
       .select('*')
-      .eq('target_date', date)
+      .eq('target_date', weekStart)
       .eq('feedback_type', 'weekly')
       .maybeSingle()
     set({ weeklyFeedback: row ?? null, isGeneratingWeekly: false })
