@@ -44,8 +44,14 @@ npm run dev
 npm test
 
 # Watch 모드로 실행
-npm test:watch
+npm run test:watch
+
+# 컴포넌트 테스트만 (jsdom)
+npx jest --selectProjects ui
 ```
+
+테스트는 두 프로젝트로 나뉩니다 — `logic` 은 node 환경의 로직·스토어 테스트(`.test.ts`),
+`ui` 는 jsdom 환경의 Testing Library 컴포넌트 테스트(`.test.tsx`)입니다.
 
 ## 기술 스택
 
@@ -114,24 +120,39 @@ BMR × 활동 수준 계수:
 
 ## 배포
 
-### Vercel (권장)
+### Vercel
+
+`vercel.json` 에 SPA 폴백 리라이트가 들어 있습니다. TanStack Router 는 SPA 라서
+이 설정이 없으면 `/stats` 같은 주소로 직접 접속하거나 새로고침할 때 404 가 납니다.
+
 ```bash
 npm i -g vercel
 vercel
 ```
 
-### Netlify
-```bash
-npm run build
-# dist 폴더를 Netlify에 업로드 (SPA 폴백 리라이트 필요)
-```
+**환경 변수를 Vercel 프로젝트 설정에 등록해야 합니다.**
+
+| 이름 | 값 |
+|------|-----|
+| `VITE_SUPABASE_URL` | Supabase 프로젝트 URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon key |
+
+빌드 시점에 번들로 들어가므로, 값을 바꾸면 재배포해야 반영됩니다.
+등록하지 않으면 앱이 뜨자마자 어느 변수가 비었는지 알리며 멈춥니다.
+
+배포 후 `/stats` 로 직접 접속해 폴백이 동작하는지 확인하세요.
+
+### 다른 호스트
+
+정적 호스팅이면 어디든 되지만, **모든 경로를 `/index.html` 로 되돌리는 폴백**이
+필요합니다. Netlify 는 `public/_redirects` 에 `/*  /index.html  200` 을 넣으면 됩니다.
 
 ## 개발 히스토리
 
 - **개발 기간**: 2026-06-23 ~ 2026-07-11 (19일)
 - **웹 전환**: 2026-08-08
 - **React Native 의존성 완전 제거**: 2026-08-17 (Vite + TanStack Router + Tailwind/shadcn 이관)
-- **자동화 테스트**: Jest 51개 통과
+- **화면 검증 및 UI 테스트 도입**: 2026-08-18 (Jest 106개 통과 — 로직 63 · 컴포넌트 43)
 - **네이티브 버전**: `native` 브랜치에 백업
 
 ## 라이선스
