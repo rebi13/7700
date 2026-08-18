@@ -10,7 +10,7 @@ export const profileSchema = z.object({
     .min(30, '체중은 30kg 이상이어야 합니다')
     .max(300, '체중은 300kg 이하여야 합니다'),
   birthDate: z
-    .string()
+    .string({ required_error: '생년월일을 입력해 주세요' })
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
     .refine((d) => new Date(d) < new Date(), '생년월일은 과거 날짜여야 합니다'),
   gender: z.enum(['male', 'female', 'other'] as const, {
@@ -28,7 +28,7 @@ export const goalSchema = z.object({
     .min(30, '목표 체중은 30kg 이상이어야 합니다')
     .max(300, '목표 체중은 300kg 이하여야 합니다'),
   targetDate: z
-    .string()
+    .string({ required_error: '목표일을 입력해 주세요' })
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
     .refine((d) => new Date(d) > new Date(), '목표일은 오늘 이후여야 합니다'),
 })

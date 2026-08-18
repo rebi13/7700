@@ -12,7 +12,7 @@ export const weightSchema = z.object({
     })
     .nullable()
     .optional(),
-  memo: z.string().max(200).nullable().optional(),
+  memo: z.string().max(200, '메모는 200자 이하여야 합니다').nullable().optional(),
 })
 
 export type WeightFormData = z.infer<typeof weightSchema>
