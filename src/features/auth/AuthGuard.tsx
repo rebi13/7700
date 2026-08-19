@@ -4,7 +4,11 @@ import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useGoalStore } from '@/stores/goalStore'
 
-const AUTH_PATHS = ['/sign-in', '/sign-up']
+const AUTH_PATHS = ['/sign-in', '/sign-up', '/forgot-password']
+
+// 복구 링크로 들어오면 임시 세션이 생긴다. 여기서 리다이렉트하면 비밀번호를
+// 바꾸기도 전에 화면이 넘어가므로, 이 경로만은 판단에서 빼둔다.
+const RECOVERY_PATH = '/reset-password'
 
 /**
  * 세션 · 프로필 · 목표 상태에 따라 진입 경로를 강제한다.
@@ -32,6 +36,7 @@ export function AuthGuard() {
 
   useEffect(() => {
     if (!initialized) return
+    if (pathname === RECOVERY_PATH) return
     if (session && !profileChecked) return
     if (session && profileChecked && profile && !goalChecked) return
 

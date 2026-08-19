@@ -12,6 +12,8 @@ import { AddLogPage } from '@/routes/AddLogPage'
 import { SettingsPage } from '@/routes/SettingsPage'
 import { SignInPage } from '@/features/auth/SignInPage'
 import { SignUpPage } from '@/features/auth/SignUpPage'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage'
 import { ProfilePage } from '@/features/onboarding/ProfilePage'
 import { GoalPage } from '@/features/goal/GoalPage'
 import { HomePage } from '@/features/dashboard/HomePage'
@@ -31,6 +33,19 @@ const signUpRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/sign-up',
   component: SignUpPage,
+})
+
+const forgotPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/forgot-password',
+  component: ForgotPasswordPage,
+})
+
+// 재설정 메일의 링크가 도착하는 곳. supabase-js 가 URL 조각의 토큰을 세션으로 바꾼다.
+const resetPasswordRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reset-password',
+  component: ResetPasswordPage,
 })
 
 // ─── 온보딩 ───────────────────────────────────────────────────────────────────
@@ -94,6 +109,8 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   signInRoute,
   signUpRoute,
+  forgotPasswordRoute,
+  resetPasswordRoute,
   onboardingRoute.addChildren([onboardingIndexRoute, onboardingGoalRoute]),
   tabsRoute.addChildren([homeRoute, addLogRoute, statsRoute, settingsRoute]),
 ])

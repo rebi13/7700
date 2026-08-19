@@ -91,7 +91,16 @@ export function SignInPage() {
                 )}
               />
 
-              <Button type="submit" disabled={isLoading} className="mt-2 w-full">
+              <div className="-mt-1 text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  비밀번호를 잊으셨나요?
+                </Link>
+              </div>
+
+              <Button type="submit" disabled={isLoading} className="mt-1 w-full">
                 {isLoading ? '로그인 중...' : '로그인'}
               </Button>
             </form>

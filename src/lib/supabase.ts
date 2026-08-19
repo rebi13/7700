@@ -25,7 +25,9 @@ export const supabase = createClient<Database>(
       // 브라우저에서는 supabase-js 가 localStorage 를 기본 저장소로 사용한다.
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      // 비밀번호 재설정·이메일 인증 링크는 URL 조각에 토큰을 실어 보낸다.
+      // 이것을 켜야 supabase-js 가 세션으로 바꿔 준다.
+      detectSessionInUrl: true,
     },
   }
 )
