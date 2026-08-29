@@ -247,6 +247,51 @@ describe('GoalPage', () => {
     })
   })
 
+  /**
+   * 이 앱은 감량 전용이다. 증량 목표를 받으면 감량량·하루 적자가 음수로 나와
+   * 화면의 숫자가 전부 무의미해진다.
+   */
+  it('목표 체중이 현재 체중보다 크면 저장하지 않는다', async () => {
+    withProfile()
+    render(<GoalPage />)
+
+    await userEvent.type(screen.getByLabelText(/목표 체중/), '85')
+    setDate(/목표일/, isoInDays(100))
+    await start()
+
+    expect(
+      await screen.findByText('목표 체중은 현재 체중(80kg)보다 작아야 합니다')
+    ).toBeInTheDocument()
+    expect(createGoal).not.toHaveBeenCalled()
+  })
+
+  it('목표 체중이 현재 체중과 같아도 저장하지 않는다', async () => {
+    withProfile()
+    render(<GoalPage />)
+
+    await userEvent.type(screen.getByLabelText(/목표 체중/), '80')
+    setDate(/목표일/, isoInDays(100))
+    await start()
+
+    expect(
+      await screen.findByText('목표 체중은 현재 체중(80kg)보다 작아야 합니다')
+    ).toBeInTheDocument()
+    expect(createGoal).not.toHaveBeenCalled()
+  })
+
+  it('증량 값을 넣어도 음수를 보여주지 않는다', async () => {
+    withProfile()
+    render(<GoalPage />)
+
+    await userEvent.type(screen.getByLabelText(/목표 체중/), '85')
+    setDate(/목표일/, isoInDays(100))
+
+    expect(await screen.findByText('자동 계산 결과')).toBeInTheDocument()
+    expect(screen.queryByText(/-5 kg/)).not.toBeInTheDocument()
+    expect(screen.getByText('감량 목표').closest('div')).toHaveTextContent('-')
+    expect(screen.queryByText(/^-\d+ kcal$/)).not.toBeInTheDocument()
+  })
+
   it('스토어 오류를 배너로 보여준다', () => {
     withProfile()
     useGoalStore.setState({ error: '목표 저장에 실패했습니다' })

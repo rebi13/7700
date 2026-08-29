@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { goalSchema, type GoalFormData } from '@/schemas/onboarding'
+import { makeGoalSchema, type GoalFormData } from '@/schemas/onboarding'
 import { useGoalStore } from '@/stores/goalStore'
+import { useProfileStore } from '@/stores/profileStore'
 import { EditSheet } from '@/components/EditSheet'
 import { ErrorBanner } from '@/components/ErrorBanner'
 import {
@@ -24,7 +25,10 @@ interface Props {
 export function GoalEditSheet({ open, onClose }: Props) {
   const { activeGoal, updateGoal, isLoading, error, clearError } = useGoalStore()
 
-  const form = useForm<GoalFormData>({ resolver: zodResolver(goalSchema) })
+  const currentWeight = useProfileStore((st) => st.profile?.current_weight_kg)
+
+  const schema = useMemo(() => makeGoalSchema(currentWeight), [currentWeight])
+  const form = useForm<GoalFormData>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
     if (!open || !activeGoal) return

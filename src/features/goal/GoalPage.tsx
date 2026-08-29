@@ -1,7 +1,8 @@
+import { useMemo } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { TriangleAlert } from 'lucide-react'
-import { goalSchema, type GoalFormData } from '@/schemas/onboarding'
+import { makeGoalSchema, type GoalFormData } from '@/schemas/onboarding'
 import { useGoalStore } from '@/stores/goalStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { calculateDailyDeficit } from '@/utils/calculations'
@@ -32,19 +33,24 @@ export function GoalPage() {
   const { createGoal, isLoading, error, clearError } = useGoalStore()
   const { profile, tdee } = useProfileStore()
 
+  const currentWeight = profile?.current_weight_kg ?? 0
+  const schema = useMemo(() => makeGoalSchema(currentWeight), [currentWeight])
+
   const form = useForm<GoalFormData>({
-    resolver: zodResolver(goalSchema),
+    resolver: zodResolver(schema),
   })
 
   const targetWeightKg = useWatch({ control: form.control, name: 'targetWeightKg' })
   const targetDate = useWatch({ control: form.control, name: 'targetDate' })
 
-  const currentWeight = profile?.current_weight_kg ?? 0
-
-  const lossKg =
+  const rawLossKg =
     targetWeightKg && currentWeight
       ? +(currentWeight - targetWeightKg).toFixed(1)
       : null
+
+  // 감량 전용이므로 0 이하는 계산하지 않는다. 제출은 스키마가 막고, 그 전까지
+  // 화면에는 음수 대신 '-' 를 보여 준다.
+  const lossKg = rawLossKg !== null && rawLossKg > 0 ? rawLossKg : null
 
   const daysLeft =
     targetDate && ISO_DATE.test(targetDate) ? getDaysRemaining(targetDate) : null

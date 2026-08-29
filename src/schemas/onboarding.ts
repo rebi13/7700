@@ -33,5 +33,23 @@ export const goalSchema = z.object({
     .refine((d) => new Date(d) > new Date(), '목표일은 오늘 이후여야 합니다'),
 })
 
+/**
+ * 이 앱은 감량 전용이다 (7700kcal = 1kg). 목표 체중이 현재 체중보다 크거나 같으면
+ * 감량량과 하루 적자가 0 이하로 나와 화면의 숫자가 전부 무의미해지므로 아예 막는다.
+ *
+ * 현재 체중은 프로필에 있어 스키마 밖에서 와야 한다. 그래서 스키마를 만들어 주는
+ * 함수로 둔다. 프로필이 아직 없으면(currentWeightKg 없음) 이 검사만 건너뛴다.
+ */
+export function makeGoalSchema(currentWeightKg?: number | null) {
+  const limit = currentWeightKg && currentWeightKg > 0 ? currentWeightKg : null
+  return goalSchema.refine(
+    (data) => limit === null || data.targetWeightKg < limit,
+    {
+      path: ['targetWeightKg'],
+      message: `목표 체중은 현재 체중(${limit}kg)보다 작아야 합니다`,
+    }
+  )
+}
+
 export type ProfileFormData = z.infer<typeof profileSchema>
 export type GoalFormData = z.infer<typeof goalSchema>
