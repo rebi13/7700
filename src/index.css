@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/*
+ * 이 앱은 라이트 테마 하나만 씁니다. `.dark` 토큰 블록은 걷어냈습니다.
+ *
+ * 이 줄은 지우지 마세요. Tailwind v4 의 `dark:` 는 기본이
+ * `@media (prefers-color-scheme: dark)` 라서, 이 줄이 없으면 shadcn 컴포넌트에
+ * 흩어져 있는 `dark:` 유틸리티가 OS 다크 설정만으로 살아납니다. 정의된 다크
+ * 토큰이 없으니 결과는 반쪽짜리 화면입니다. 이 줄은 `dark:` 를 클래스 기준으로
+ * 묶어 두고, 아무도 `.dark` 를 붙이지 않으므로 전부 죽은 채로 남습니다.
+ */
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -34,34 +43,6 @@
   --surplus: oklch(0.577 0.245 27.325);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --deficit: oklch(0.696 0.17 162.48);
-  --surplus: oklch(0.704 0.191 22.216);
-}
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
