@@ -27,3 +27,7 @@ TODO*.md
 
 # typescript
 *.tsbuildinfo
+
+# native artifacts (main 은 순수 웹 — native 브랜치의 잔여물 제외)
+.expo/
+ios/
