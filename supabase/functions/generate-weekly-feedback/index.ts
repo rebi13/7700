@@ -95,9 +95,9 @@ Deno.serve(async (req) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      max_tokens: 350,
-      temperature: 0.7,
+      model: 'gpt-5-mini',
+      max_completion_tokens: 2500,
+      reasoning_effort: 'low',
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: userMessage },
