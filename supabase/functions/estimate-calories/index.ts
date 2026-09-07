@@ -6,7 +6,7 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const SYSTEM_PROMPT = `You are a Korean food nutritionist. Given a food name, estimate the nutritional content for a typical Korean serving size.
+const SYSTEM_PROMPT = `You are a Korean food nutritionist. Given a food name, estimate the nutritional content for a realistic full portion that a Korean adult would actually eat in one sitting (not a minimal or diet-sized serving). If the food name specifies an amount (e.g. "밥 1공기", "김치찌개 1인분"), estimate for that stated amount. When in doubt, prefer the higher end of a normal restaurant portion rather than underestimating.
 Respond ONLY with valid JSON in this exact format:
 {
   "calories": <integer>,
@@ -66,8 +66,9 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      max_tokens: 256,
+      model: 'gpt-5-mini',
+      max_completion_tokens: 2000,
+      reasoning_effort: 'low',
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
