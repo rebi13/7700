@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { mealSchema, type MealFormData } from '@/schemas/meal'
 import { useMealStore } from '@/stores/mealStore'
 import { useSummaryStore } from '@/stores/summaryStore'
+import { useCalorieEstimate } from '@/features/ai-log/useCalorieEstimate'
 import { MealFields } from '@/features/meal/MealFields'
 import { syncFoodLibrary } from '@/features/meal/foodLibrary'
 import { EditSheet } from '@/components/EditSheet'
@@ -19,6 +20,7 @@ interface Props {
 export function MealEditSheet({ item, date, onClose }: Props) {
   const { updateLog, fetchLogs, isLoading } = useMealStore()
   const { calculateAndSave } = useSummaryStore()
+  const ai = useCalorieEstimate()
 
   const form = useForm<MealFormData>({ resolver: zodResolver(mealSchema) })
 
@@ -34,6 +36,9 @@ export function MealEditSheet({ item, date, onClose }: Props) {
       fat_g: item.fat_g ?? undefined,
       memo: item.memo ?? undefined,
     })
+    // 이전 편집에서 남은 추정 노트를 지운다.
+    ai.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item, form])
 
   const onSubmit = async (data: MealFormData) => {
@@ -51,14 +56,17 @@ export function MealEditSheet({ item, date, onClose }: Props) {
     await fetchLogs(date)
     await calculateAndSave(date)
 
-    // 수정은 사용자가 값을 확정한 것으로 보고 라이브러리를 그 값으로 갱신한다.
+    // 추정/캐시 값을 그대로 저장했으면 'ai', 값을 고쳤으면 'manual' 로 라이브러리를 갱신한다.
+    const pristine = ai.isPristineEstimate(data.calories)
     await syncFoodLibrary({
       food_name: data.food_name,
       calories: data.calories,
       protein_g: data.protein_g,
       carbs_g: data.carbs_g,
       fat_g: data.fat_g,
-      source: 'manual',
+      source: pristine ? 'ai' : 'manual',
+      confidence: pristine ? ai.note?.confidence ?? null : null,
+      note: pristine ? ai.note?.text ?? null : null,
     })
 
     onClose()
@@ -74,7 +82,7 @@ export function MealEditSheet({ item, date, onClose }: Props) {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
-          <MealFields form={form} />
+          <MealFields form={form} ai={ai} />
         </form>
       </Form>
     </EditSheet>
