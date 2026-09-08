@@ -16,18 +16,21 @@ const CONFIDENCE_CLASS: Record<EstimateResult['confidence'], string> = {
 }
 
 export function AiEstimateNote({ note }: { note: AiNote }) {
+  const isSaved = note.source === 'saved'
   return (
     <div className="mt-2 rounded-md border-l-2 border-l-deficit bg-accent/50 px-3 py-2">
       <p
         className={cn(
           'flex items-center gap-1 text-xs font-semibold',
-          CONFIDENCE_CLASS[note.confidence]
+          isSaved ? 'text-deficit' : CONFIDENCE_CLASS[note.confidence]
         )}
       >
         <Check className="size-3.5" />
-        AI 추정 · 신뢰도 {CONFIDENCE_LABEL[note.confidence]}
+        {isSaved
+          ? '저장된 값 · 이전 기록에서 불러옴'
+          : `AI 추정 · 신뢰도 ${CONFIDENCE_LABEL[note.confidence]}`}
       </p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{note.text}</p>
+      {note.text && <p className="mt-0.5 text-xs text-muted-foreground">{note.text}</p>}
     </div>
   )
 }

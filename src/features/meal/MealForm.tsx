@@ -5,6 +5,7 @@ import { useMealStore } from '@/stores/mealStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { useCalorieEstimate } from '@/features/ai-log/useCalorieEstimate'
 import { MealFields } from '@/features/meal/MealFields'
+import { syncFoodLibrary } from '@/features/meal/foodLibrary'
 import { Button } from '@/components/ui/button'
 import { Form } from '@/components/ui/form'
 import { blurActiveElement } from '@/lib/dom'
@@ -30,6 +31,21 @@ export function MealForm({ date }: { date: string }) {
     }
 
     await useSummaryStore.getState().calculateAndSave(date)
+
+    // 저장한 값으로 음식 라이브러리를 갱신한다. 추정/캐시 값을 그대로 뒀으면 'ai',
+    // 칼로리를 고쳤거나 직접 입력했으면 'manual' 로 남겨 다음부터 그 값을 재사용한다.
+    const pristine = ai.isPristineEstimate(data.calories)
+    await syncFoodLibrary({
+      food_name: data.food_name,
+      calories: data.calories,
+      protein_g: data.protein_g,
+      carbs_g: data.carbs_g,
+      fat_g: data.fat_g,
+      source: pristine ? 'ai' : 'manual',
+      confidence: pristine ? ai.note?.confidence ?? null : null,
+      note: pristine ? ai.note?.text ?? null : null,
+    })
+
     form.reset({ meal_date: date, meal_type: undefined })
     ai.reset()
     toast.success('식사 기록이 저장되었습니다')

@@ -5,6 +5,7 @@ import { mealSchema, type MealFormData } from '@/schemas/meal'
 import { useMealStore } from '@/stores/mealStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { MealFields } from '@/features/meal/MealFields'
+import { syncFoodLibrary } from '@/features/meal/foodLibrary'
 import { EditSheet } from '@/components/EditSheet'
 import { Form } from '@/components/ui/form'
 import type { MealLogRow } from '@/types/database'
@@ -49,6 +50,17 @@ export function MealEditSheet({ item, date, onClose }: Props) {
     })
     await fetchLogs(date)
     await calculateAndSave(date)
+
+    // 수정은 사용자가 값을 확정한 것으로 보고 라이브러리를 그 값으로 갱신한다.
+    await syncFoodLibrary({
+      food_name: data.food_name,
+      calories: data.calories,
+      protein_g: data.protein_g,
+      carbs_g: data.carbs_g,
+      fat_g: data.fat_g,
+      source: 'manual',
+    })
+
     onClose()
   }
 

@@ -3,6 +3,7 @@ export type ActivityLevel = 'sedentary' | 'light' | 'moderate' | 'active' | 'ver
 export type MealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'late_night'
 export type MeasuredTiming = 'morning' | 'afternoon' | 'evening' | 'after_workout' | 'other'
 export type FeedbackType = 'daily' | 'weekly'
+export type FoodSource = 'ai' | 'manual'
 
 // ─── profiles ────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,56 @@ export interface MealLogUpdate {
   carbs_g?: number | null
   fat_g?: number | null
   memo?: string | null
+}
+
+// ─── foods (사용자별 음식 라이브러리) ─────────────────────────────────────────────
+
+export interface FoodRow {
+  id: string
+  user_id: string
+  normalized_name: string
+  display_name: string
+  calories: number
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  source: FoodSource
+  confidence: 'high' | 'medium' | 'low' | null
+  note: string | null
+  use_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface FoodInsert {
+  id?: string
+  user_id: string
+  normalized_name: string
+  display_name: string
+  calories: number
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  source?: FoodSource
+  confidence?: 'high' | 'medium' | 'low' | null
+  note?: string | null
+  use_count?: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface FoodUpdate {
+  normalized_name?: string
+  display_name?: string
+  calories?: number
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  source?: FoodSource
+  confidence?: 'high' | 'medium' | 'low' | null
+  note?: string | null
+  use_count?: number
+  updated_at?: string
 }
 
 // ─── exercise_logs ───────────────────────────────────────────────────────────
@@ -301,6 +352,12 @@ export type Database = {
         Row: WithIndex<MealLogRow>
         Insert: WithIndex<MealLogInsert>
         Update: WithIndex<MealLogUpdate>
+        Relationships: []
+      }
+      foods: {
+        Row: WithIndex<FoodRow>
+        Insert: WithIndex<FoodInsert>
+        Update: WithIndex<FoodUpdate>
         Relationships: []
       }
       exercise_logs: {

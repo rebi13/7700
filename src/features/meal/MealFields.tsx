@@ -2,6 +2,7 @@ import { Sparkles } from 'lucide-react'
 import type { UseFormReturn } from 'react-hook-form'
 import type { MealFormData } from '@/schemas/meal'
 import { MEAL_TYPES } from '@/features/meal/options'
+import { FoodNameField } from '@/features/meal/FoodNameField'
 import { AiEstimateNote } from '@/features/ai-log/AiEstimateNote'
 import { useCalorieEstimate } from '@/features/ai-log/useCalorieEstimate'
 import { ChipGroup } from '@/components/ChipGroup'
@@ -57,19 +58,7 @@ export function MealFields({ form, ai }: Props) {
         )}
       />
 
-      <FormField
-        control={form.control}
-        name="food_name"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>음식 이름 *</FormLabel>
-            <FormControl>
-              <Input placeholder="예: 비빔밥" {...field} value={field.value ?? ''} />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
+      <FoodNameField form={form} ai={ai} />
 
       {ai && (
         <div className="flex justify-end">

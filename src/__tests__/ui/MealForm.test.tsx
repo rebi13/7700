@@ -9,6 +9,7 @@ jest.mock('@/lib/toast', () => ({
 import { useMealStore } from '@/stores/mealStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { useAiStore } from '@/stores/aiStore'
+import { useFoodStore } from '@/stores/foodStore'
 import { toast } from '@/lib/toast'
 import { MealForm } from '@/features/meal/MealForm'
 
@@ -17,17 +18,32 @@ const DATE = '2026-08-18'
 const addLog = jest.fn()
 const calculateAndSave = jest.fn()
 const estimateCalories = jest.fn()
+const foodLookup = jest.fn()
+const foodSearch = jest.fn()
+const foodUpsert = jest.fn()
+const foodRecordUsage = jest.fn()
 
 beforeEach(() => {
   addLog.mockReset().mockResolvedValue(undefined)
   calculateAndSave.mockReset().mockResolvedValue(undefined)
   estimateCalories.mockReset()
+  foodLookup.mockReset().mockResolvedValue(null)
+  foodSearch.mockReset().mockResolvedValue([])
+  foodUpsert.mockReset().mockResolvedValue(undefined)
+  foodRecordUsage.mockReset().mockResolvedValue(undefined)
   ;(toast.success as jest.Mock).mockReset()
   ;(toast.error as jest.Mock).mockReset()
 
   useMealStore.setState({ logs: [], isLoading: false, error: null, addLog })
   useSummaryStore.setState({ calculateAndSave })
   useAiStore.setState({ isEstimating: false, error: null, estimateCalories })
+  useFoodStore.setState({
+    suggestions: [],
+    lookup: foodLookup,
+    search: foodSearch,
+    upsertFromEstimate: foodUpsert,
+    recordUsage: foodRecordUsage,
+  })
 })
 
 /** 칩은 Radix ToggleGroup 이라 button 이 아니라 radio 롤로 잡힌다 */
@@ -175,5 +191,77 @@ describe('MealForm 의 AI 칼로리 추정', () => {
         'AI 사용량이 모두 소진되었습니다. 관리자에게 문의해 주세요.'
       )
     )
+  })
+})
+
+describe('MealForm 의 음식 라이브러리', () => {
+  const cached = {
+    id: 'f1',
+    display_name: '김치찌개',
+    calories: 250,
+    protein_g: 12,
+    carbs_g: null,
+    fat_g: null,
+    confidence: 'high',
+    note: '',
+    source: 'ai',
+  }
+
+  it('저장된 음식이면 AI 를 부르지 않고 캐시 값으로 채운다', async () => {
+    foodLookup.mockResolvedValue(cached)
+    render(<MealForm date={DATE} />)
+    await userEvent.type(screen.getByLabelText(/음식 이름/), '김치찌개')
+
+    await userEvent.click(screen.getByRole('button', { name: /AI 칼로리 추정/ }))
+
+    await waitFor(() => expect(screen.getByLabelText(/칼로리/)).toHaveValue('250'))
+    expect(estimateCalories).not.toHaveBeenCalled()
+    expect(screen.getByText(/저장된 값/)).toBeInTheDocument()
+  })
+
+  it('처음 보는 음식은 AI 로 추정하고 라이브러리에 저장한다', async () => {
+    foodLookup.mockResolvedValue(null)
+    estimateCalories.mockResolvedValue({
+      calories: 300,
+      protein_g: 14,
+      carbs_g: 18,
+      fat_g: 20,
+      confidence: 'high',
+      note: '평균 1인분',
+    })
+    render(<MealForm date={DATE} />)
+    await userEvent.type(screen.getByLabelText(/음식 이름/), '신메뉴')
+
+    await userEvent.click(screen.getByRole('button', { name: /AI 칼로리 추정/ }))
+
+    await waitFor(() => expect(estimateCalories).toHaveBeenCalledTimes(1))
+    expect(foodUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'ai', ignoreDuplicates: true, calories: 300 })
+    )
+  })
+
+  it('자동완성에서 저장된 음식을 고르면 칼로리를 채운다', async () => {
+    const row = {
+      id: 'f2',
+      display_name: '현미밥',
+      calories: 320,
+      protein_g: 6,
+      carbs_g: 68,
+      fat_g: 2,
+      confidence: null,
+      note: null,
+      source: 'manual',
+    }
+    foodSearch.mockImplementation(async () => {
+      useFoodStore.setState({ suggestions: [row as never] })
+      return [row]
+    })
+    render(<MealForm date={DATE} />)
+    await userEvent.type(screen.getByLabelText(/음식 이름/), '현미')
+
+    await userEvent.click(await screen.findByRole('button', { name: /현미밥/ }))
+
+    await waitFor(() => expect(screen.getByLabelText(/칼로리/)).toHaveValue('320'))
+    expect(screen.getByLabelText(/음식 이름/)).toHaveValue('현미밥')
   })
 })
