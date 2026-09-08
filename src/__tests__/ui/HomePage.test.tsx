@@ -9,9 +9,11 @@ import { useGoalStore } from '@/stores/goalStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { useFeedbackStore } from '@/stores/feedbackStore'
 import { HomePage } from '@/features/dashboard/HomePage'
+import { addDays, formatDateShort, todayISO } from '@/utils/date'
 import type { DailySummaryRow } from '@/types/database'
 
 const calculateAndSave = jest.fn()
+const fetchSummary = jest.fn()
 const fetchDailyFeedback = jest.fn()
 const generateDailyFeedback = jest.fn()
 
@@ -25,6 +27,7 @@ function resetToColdStart() {
     isLoading: false,
     error: null,
     calculateAndSave,
+    fetchSummary,
   })
   useFeedbackStore.setState({
     dailyFeedback: null,
@@ -65,6 +68,7 @@ function summary(overrides: Partial<DailySummaryRow> = {}): DailySummaryRow {
 
 beforeEach(() => {
   calculateAndSave.mockReset()
+  fetchSummary.mockReset()
   fetchDailyFeedback.mockReset()
   generateDailyFeedback.mockReset()
   resetToColdStart()
@@ -194,5 +198,40 @@ describe('HomePage 표시', () => {
     await userEvent.click(screen.getByRole('button', { name: /새로고침/ }))
 
     expect(calculateAndSave).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('HomePage 날짜 이동', () => {
+  beforeEach(() => {
+    signIn()
+    useProfileStore.setState({ tdee: 2562 })
+  })
+
+  it('이전 날을 누르면 지난 날짜의 저장된 요약과 피드백을 조회한다', async () => {
+    render(<HomePage />)
+    const yesterday = addDays(todayISO(), -1)
+
+    await userEvent.click(screen.getByRole('button', { name: '이전 날' }))
+
+    // 지난 날짜는 다시 계산하지 않고 저장본을 읽는다.
+    expect(fetchSummary).toHaveBeenCalledWith(yesterday)
+    expect(fetchDailyFeedback).toHaveBeenLastCalledWith(yesterday)
+  })
+
+  it('지난 날짜에서는 카드 제목이 그 날짜로 바뀐다', async () => {
+    render(<HomePage />)
+    const yesterday = addDays(todayISO(), -1)
+
+    await userEvent.click(screen.getByRole('button', { name: '이전 날' }))
+
+    expect(
+      screen.getByText(`${formatDateShort(yesterday)} 칼로리`)
+    ).toBeInTheDocument()
+  })
+
+  it('오늘에서는 다음 날 버튼을 막아 미래로 못 넘어간다', () => {
+    render(<HomePage />)
+
+    expect(screen.getByRole('button', { name: '다음 날' })).toBeDisabled()
   })
 })

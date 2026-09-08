@@ -33,6 +33,11 @@ export function todayISO(): string {
   return toISODate(new Date())
 }
 
+/** 'YYYY-MM-DD' 를 로컬 자정의 Date 로. 캘린더 컴포넌트에 넘길 때 쓴다. */
+export function fromISODate(date: string): Date {
+  return parseISODate(date)
+}
+
 export function getDaysRemaining(targetDate: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)

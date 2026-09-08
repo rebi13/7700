@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, Sparkles } from 'lucide-react'
+import { DateNavigator } from '@/features/dashboard/DateNavigator'
 import { useAuthStore } from '@/stores/authStore'
 import { useProfileStore } from '@/stores/profileStore'
 import { useGoalStore } from '@/stores/goalStore'
@@ -17,7 +18,7 @@ import {
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import { formatDate, todayISO } from '@/utils/date'
+import { formatDateShort, todayISO } from '@/utils/date'
 import { cn } from '@/lib/utils'
 
 export function HomePage() {
@@ -29,6 +30,7 @@ export function HomePage() {
     isLoading,
     error: summaryError,
     calculateAndSave,
+    fetchSummary,
     clearError: clearSummaryError,
   } = useSummaryStore()
   const {
@@ -42,18 +44,34 @@ export function HomePage() {
 
   const today = todayISO()
   const userId = user?.id
+  const [selectedDate, setSelectedDate] = useState(today)
+  const isToday = selectedDate === today
+  const dayLabel = isToday ? '오늘' : formatDateShort(selectedDate)
+
+  // 오늘은 최신 기록으로 다시 계산해 보여 주고, 지난 날짜는 저장된 요약을 읽어 온다.
+  // (기록 추가·수정·삭제가 그날의 요약을 항상 갱신해 두므로 저장본이 최신이다.)
+  const loadSummary = useCallback(
+    (date: string) => {
+      if (date === todayISO()) {
+        if (useProfileStore.getState().tdee === null) return
+        return calculateAndSave(date)
+      }
+      return fetchSummary(date)
+    },
+    [calculateAndSave, fetchSummary]
+  )
 
   // 스토어는 userId·tdee 가 없으면 조용히 빠져나간다. 세션 복원과 프로필 조회는
   // AuthGuard 가 비동기로 처리하므로, 준비된 뒤에 다시 부르도록 의존성에 넣는다.
   useEffect(() => {
     if (!userId) return
-    fetchDailyFeedback(today)
-  }, [userId, fetchDailyFeedback, today])
+    fetchDailyFeedback(selectedDate)
+  }, [userId, fetchDailyFeedback, selectedDate])
 
   useEffect(() => {
-    if (!userId || tdee === null) return
-    calculateAndSave(today)
-  }, [userId, tdee, calculateAndSave, today])
+    if (!userId) return
+    loadSummary(selectedDate)
+  }, [userId, tdee, loadSummary, selectedDate])
 
   const intake = todaySummary?.total_intake_calories ?? 0
   const exercise = todaySummary?.total_exercise_calories ?? 0
@@ -82,7 +100,7 @@ export function HomePage() {
           <h1 className="text-xl font-bold">안녕하세요 👋</h1>
           <p className="text-sm text-muted-foreground">{user?.email}</p>
         </div>
-        <p className="pt-1 text-sm text-muted-foreground">{formatDate(today)}</p>
+        <DateNavigator date={selectedDate} onChange={setSelectedDate} />
       </header>
 
       {error && <ErrorBanner message={error} onDismiss={clearError} />}
@@ -98,7 +116,7 @@ export function HomePage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                오늘 칼로리
+                {dayLabel} 칼로리
               </CardTitle>
             </CardHeader>
             <CardContent className="flex items-center">
@@ -114,7 +132,7 @@ export function HomePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  오늘
+                  {dayLabel}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -203,14 +221,14 @@ export function HomePage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium text-muted-foreground">
-            오늘의 AI 피드백
+            {isToday ? '오늘의' : dayLabel} AI 피드백
           </CardTitle>
           {dailyFeedback && (
             <CardAction>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => generateDailyFeedback(today)}
+                onClick={() => generateDailyFeedback(selectedDate)}
                 disabled={isGenerating}
               >
                 다시 생성
@@ -226,7 +244,7 @@ export function HomePage() {
               {dailyFeedback.feedback}
             </p>
           ) : (
-            <Button className="w-full" onClick={() => generateDailyFeedback(today)}>
+            <Button className="w-full" onClick={() => generateDailyFeedback(selectedDate)}>
               <Sparkles />
               AI 피드백 받기
             </Button>
@@ -236,7 +254,7 @@ export function HomePage() {
 
       <Button
         variant="outline"
-        onClick={() => calculateAndSave(today)}
+        onClick={() => loadSummary(selectedDate)}
         disabled={isLoading}
       >
         <RefreshCw />
