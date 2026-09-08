@@ -1,6 +1,12 @@
 import { z } from 'zod'
 
-export const profileSchema = z.object({
+const activityEnum = z.enum(
+  ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const,
+  { errorMap: () => ({ message: '활동 수준을 선택해 주세요' }) }
+)
+
+/** 두 방식이 공유하는 신체 정보 필드 */
+const baseProfileFields = {
   heightCm: z.coerce
     .number({ invalid_type_error: '키를 입력해 주세요' })
     .min(100, '키는 100cm 이상이어야 합니다')
@@ -16,11 +22,46 @@ export const profileSchema = z.object({
   gender: z.enum(['male', 'female', 'other'] as const, {
     errorMap: () => ({ message: '성별을 선택해 주세요' }),
   }),
-  activityLevel: z.enum(
-    ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const,
-    { errorMap: () => ({ message: '활동 수준을 선택해 주세요' }) }
-  ),
-})
+}
+
+/**
+ * 유지 칼로리(TDEE) 는 두 방식 중 하나로 정한다.
+ * - `auto`: 활동 수준을 골라 BMR × 활동계수로 자동 계산한다.
+ * - `manual`: 인바디 등에서 잰 값을 직접 입력한다.
+ *
+ * 방식마다 필수 필드가 달라서 `tdeeMode` 로 가르는 판별 유니온으로 둔다.
+ * (superRefine 은 다른 필드가 이미 틀리면 실행되지 않아, 빈 폼에서 활동 수준
+ * 오류가 함께 뜨지 않는다. 판별 유니온은 분기 안에서 필드가 늘 검증된다.)
+ * `tdeeMode` 는 폼에서만 쓰는 값이고 DB 에는 저장하지 않는다.
+ */
+export const profileSchema = z.discriminatedUnion('tdeeMode', [
+  z.object({
+    ...baseProfileFields,
+    tdeeMode: z.literal('auto'),
+    activityLevel: activityEnum,
+    customTdee: z.coerce.number().optional(),
+  }),
+  z.object({
+    ...baseProfileFields,
+    tdeeMode: z.literal('manual'),
+    activityLevel: activityEnum.optional(),
+    // 빈칸('')·NaN 은 undefined 로 바꿔 required_error 가 뜨게 한다.
+    customTdee: z.preprocess(
+      (v) => {
+        if (v === '' || v === null || v === undefined) return undefined
+        const n = Number(v)
+        return Number.isNaN(n) ? undefined : n
+      },
+      z
+        .number({
+          required_error: '유지 칼로리를 입력해 주세요',
+          invalid_type_error: '유지 칼로리를 입력해 주세요',
+        })
+        .min(800, '유지 칼로리는 800~6000 kcal 사이여야 합니다')
+        .max(6000, '유지 칼로리는 800~6000 kcal 사이여야 합니다')
+    ),
+  }),
+])
 
 export const goalSchema = z.object({
   targetWeightKg: z.coerce

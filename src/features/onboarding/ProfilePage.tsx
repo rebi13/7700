@@ -19,15 +19,18 @@ export function ProfilePage() {
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
+    defaultValues: { tdeeMode: 'auto' },
   })
 
   const onSubmit = async (data: ProfileFormData) => {
+    const manual = data.tdeeMode === 'manual'
     await createProfile({
       height_cm: data.heightCm,
       current_weight_kg: data.currentWeightKg,
       birth_date: data.birthDate,
       gender: data.gender,
-      activity_level: data.activityLevel,
+      activity_level: manual ? null : data.activityLevel,
+      custom_tdee: manual ? data.customTdee : null,
     })
   }
 

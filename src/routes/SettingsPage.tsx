@@ -98,13 +98,22 @@ export function SettingsPage() {
               <InfoRow
                 label="활동 수준"
                 value={
-                  profile.activity_level
-                    ? ACTIVITY_LABEL[profile.activity_level]
-                    : '미설정'
+                  profile.custom_tdee != null
+                    ? '직접 입력'
+                    : profile.activity_level
+                      ? ACTIVITY_LABEL[profile.activity_level]
+                      : '미설정'
                 }
               />
               {bmr && <InfoRow label="기초 대사량" value={`${Math.round(bmr)} kcal`} />}
-              {tdee && <InfoRow label="유지 칼로리" value={`${Math.round(tdee)} kcal`} />}
+              {tdee && (
+                <InfoRow
+                  label="유지 칼로리"
+                  value={`${Math.round(tdee)} kcal${
+                    profile.custom_tdee != null ? ' (직접 입력)' : ''
+                  }`}
+                />
+              )}
             </dl>
           ) : (
             <p className="py-2 text-center text-sm text-muted-foreground">

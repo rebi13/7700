@@ -17,15 +17,25 @@ interface ProfileState {
   clearError: () => void
 }
 
-function computeMetrics(p: ProfileRow): { bmr: number; tdee: number } | null {
-  if (!p.gender || !p.activity_level) return null
-  const bmr = calculateBMR({
-    weightKg: p.current_weight_kg,
-    heightCm: p.height_cm,
-    birthDate: p.birth_date,
-    gender: p.gender,
-  })
-  return { bmr, tdee: calculateTDEE(bmr, p.activity_level) }
+function computeMetrics(p: ProfileRow): { bmr: number | null; tdee: number | null } {
+  // BMR 은 표시용. 성별이 있으면 계산해 둔다.
+  const bmr = p.gender
+    ? calculateBMR({
+        weightKg: p.current_weight_kg,
+        heightCm: p.height_cm,
+        birthDate: p.birth_date,
+        gender: p.gender,
+      })
+    : null
+
+  // 직접 입력한 유지 칼로리가 있으면 그 값을 TDEE 로 쓴다.
+  if (p.custom_tdee != null) return { bmr, tdee: p.custom_tdee }
+
+  // 없으면 활동 수준으로 자동 계산한다.
+  if (bmr != null && p.activity_level) {
+    return { bmr, tdee: calculateTDEE(bmr, p.activity_level) }
+  }
+  return { bmr, tdee: null }
 }
 
 export const useProfileStore = create<ProfileState>((set) => ({
@@ -55,8 +65,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
     const metrics = computeMetrics(data)
     set({
       profile: data,
-      bmr: metrics?.bmr ?? null,
-      tdee: metrics?.tdee ?? null,
+      bmr: metrics.bmr,
+      tdee: metrics.tdee,
       profileChecked: true,
       isLoading: false,
     })
@@ -81,8 +91,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
     const metrics = computeMetrics(created)
     set({
       profile: created,
-      bmr: metrics?.bmr ?? null,
-      tdee: metrics?.tdee ?? null,
+      bmr: metrics.bmr,
+      tdee: metrics.tdee,
       profileChecked: true,
       isLoading: false,
     })
@@ -108,8 +118,8 @@ export const useProfileStore = create<ProfileState>((set) => ({
     const metrics = computeMetrics(updated)
     set({
       profile: updated,
-      bmr: metrics?.bmr ?? null,
-      tdee: metrics?.tdee ?? null,
+      bmr: metrics.bmr,
+      tdee: metrics.tdee,
       isLoading: false,
     })
   },

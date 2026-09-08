@@ -14,6 +14,8 @@ export interface ProfileRow {
   birth_date: string
   gender: Gender | null
   activity_level: ActivityLevel | null
+  /** 직접 입력한 유지 칼로리. NULL 이면 활동 수준으로 자동 계산한다. */
+  custom_tdee: number | null
   created_at: string
   updated_at: string
 }
@@ -26,6 +28,7 @@ export interface ProfileInsert {
   birth_date: string
   gender?: Gender | null
   activity_level?: ActivityLevel | null
+  custom_tdee?: number | null
   created_at?: string
   updated_at?: string
 }
@@ -36,6 +39,7 @@ export interface ProfileUpdate {
   birth_date?: string
   gender?: Gender | null
   activity_level?: ActivityLevel | null
+  custom_tdee?: number | null
   updated_at?: string
 }
 

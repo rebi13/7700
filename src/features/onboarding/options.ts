@@ -24,6 +24,13 @@ export const ACTIVITY_OPTIONS: {
   { value: 'very_active', label: '매우 활동적', desc: '하루 2회 운동' },
 ]
 
+export type TdeeMode = 'auto' | 'manual'
+
+export const TDEE_MODE_OPTIONS: { value: TdeeMode; label: string }[] = [
+  { value: 'auto', label: '자동 계산' },
+  { value: 'manual', label: '직접 입력' },
+]
+
 export const ACTIVITY_LABEL: Record<ActivityLevel, string> = {
   sedentary: '비활동적',
   light: '가벼운 활동',

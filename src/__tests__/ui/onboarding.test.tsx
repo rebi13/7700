@@ -120,6 +120,29 @@ describe('ProfilePage', () => {
       birth_date: '1990-01-01',
       gender: 'male',
       activity_level: 'moderate',
+      custom_tdee: null,
+    })
+  })
+
+  it('직접 입력을 고르면 활동 수준 대신 유지 칼로리를 넘긴다', async () => {
+    render(<ProfilePage />)
+    await userEvent.type(screen.getByLabelText(/키/), '175')
+    await userEvent.type(screen.getByLabelText(/현재 체중/), '80')
+    setDate(/생년월일/, '1990-01-01')
+    await userEvent.click(screen.getByRole('radio', { name: '남성' }))
+    await userEvent.click(screen.getByRole('radio', { name: '직접 입력' }))
+    await userEvent.type(screen.getByLabelText(/유지 칼로리 \(kcal\)/), '2200')
+
+    await next()
+
+    await waitFor(() => expect(createProfile).toHaveBeenCalledTimes(1))
+    expect(createProfile).toHaveBeenCalledWith({
+      height_cm: 175,
+      current_weight_kg: 80,
+      birth_date: '1990-01-01',
+      gender: 'male',
+      activity_level: null,
+      custom_tdee: 2200,
     })
   })
 

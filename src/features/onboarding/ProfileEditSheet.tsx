@@ -27,24 +27,32 @@ export function ProfileEditSheet({ open, onClose }: Props) {
   useEffect(() => {
     if (!open || !profile) return
     clearError()
-    form.reset({
+    const common = {
       heightCm: profile.height_cm,
       currentWeightKg: profile.current_weight_kg,
       birthDate: profile.birth_date,
       gender: profile.gender ?? undefined,
       activityLevel: profile.activity_level ?? undefined,
-    })
+    }
+    // 판별 유니온이라 tdeeMode 는 분기별 리터럴로 넘겨야 한다.
+    if (profile.custom_tdee != null) {
+      form.reset({ ...common, tdeeMode: 'manual', customTdee: profile.custom_tdee })
+    } else {
+      form.reset({ ...common, tdeeMode: 'auto', customTdee: undefined })
+    }
   }, [open, profile, form, clearError])
 
   const onSubmit = async (data: ProfileFormData) => {
     const prevWeight = profile?.current_weight_kg
+    const manual = data.tdeeMode === 'manual'
 
     await updateProfile({
       height_cm: data.heightCm,
       current_weight_kg: data.currentWeightKg,
       birth_date: data.birthDate,
       gender: data.gender,
-      activity_level: data.activityLevel,
+      activity_level: manual ? null : data.activityLevel,
+      custom_tdee: manual ? data.customTdee : null,
     })
     if (useProfileStore.getState().error) return
 
