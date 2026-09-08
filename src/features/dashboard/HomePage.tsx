@@ -154,14 +154,16 @@ export function HomePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  TDEE
+                  유지 칼로리
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-extrabold tabular-nums">
                   {(tdee ?? 0).toLocaleString()}
                 </p>
-                <p className="text-xs text-muted-foreground">kcal / 일</p>
+                <p className="text-xs text-muted-foreground">
+                  kcal · 하루 총 소비량 (TDEE)
+                </p>
                 {dailyDeficit !== null && (
                   <p className="mt-1.5 text-xs text-muted-foreground/70">
                     목표 적자 {dailyDeficit.toLocaleString()} kcal

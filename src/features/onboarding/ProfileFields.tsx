@@ -8,6 +8,7 @@ import {
 import { ChipGroup } from '@/components/ChipGroup'
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -102,6 +103,11 @@ export function ProfileFields({ form }: { form: UseFormReturn<ProfileFormData> }
         render={({ field }) => (
           <FormItem>
             <FormLabel>유지 칼로리 (TDEE) *</FormLabel>
+            <FormDescription>
+              하루 동안 몸이 쓰는 총 칼로리예요. 이만큼 먹으면 체중이 유지되고,
+              덜 먹으면 빠집니다. 키·체중·활동량으로 자동 계산하거나, 인바디에서
+              측정한 값을 직접 넣을 수 있어요.
+            </FormDescription>
             <FormControl>
               <ChipGroup
                 aria-label="유지 칼로리 방식"
