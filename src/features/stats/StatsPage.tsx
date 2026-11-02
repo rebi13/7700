@@ -3,6 +3,7 @@ import { Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/stores/authStore'
 import { useWeightStore } from '@/stores/weightStore'
 import { useSummaryStore } from '@/stores/summaryStore'
+import { useGoalStore } from '@/stores/goalStore'
 import { useFeedbackStore } from '@/stores/feedbackStore'
 import { WeightTrendChart } from '@/features/stats/WeightTrendChart'
 import { DeltaBarChart } from '@/features/stats/DeltaBarChart'
@@ -18,7 +19,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { todayISO } from '@/utils/date'
+import { cumulativeDeltaSeries } from '@/utils/calculations'
+import { formatDateShort, todayISO } from '@/utils/date'
 import { getWeekRange } from '../../../supabase/functions/_shared/weekly-feedback.logic'
 
 /** YYYY-MM-DD → M/D */
@@ -34,6 +36,8 @@ export function StatsPage() {
   const {
     recentSummaries,
     fetchRecentSummaries,
+    goalSummaries,
+    fetchGoalSummaries,
     isLoading: summaryLoading,
   } = useSummaryStore()
   const {
@@ -55,6 +59,12 @@ export function StatsPage() {
     fetchRecentSummaries(30)
     fetchWeeklyFeedback(weekStart)
   }, [userId, fetchRecentLogs, fetchRecentSummaries, fetchWeeklyFeedback, weekStart])
+
+  const startDate = useGoalStore((st) => st.activeGoal?.start_date)
+  useEffect(() => {
+    if (!userId || !startDate) return
+    fetchGoalSummaries(startDate)
+  }, [userId, startDate, fetchGoalSummaries])
 
   const isLoading = weightLoading || summaryLoading
 
@@ -79,13 +89,16 @@ export function StatsPage() {
     [recentSummaries]
   )
 
+  // 목표 기준일부터 식사를 기록한 날만 이어 붙인다.
   const cumulativeData = useMemo(
     () =>
-      recentSummaries.map((summary) => ({
-        date: shortDate(summary.summary_date),
-        cumulative: summary.cumulative_delta,
-      })),
-    [recentSummaries]
+      startDate
+        ? cumulativeDeltaSeries(goalSummaries, startDate).map((point) => ({
+            date: shortDate(point.date),
+            cumulative: point.cumulative,
+          }))
+        : [],
+    [goalSummaries, startDate]
   )
 
   return (
@@ -159,14 +172,15 @@ export function StatsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                누적 칼로리 적자 (최근 30일)
+                누적 칼로리 적자
+                {startDate && ` (${formatDateShort(startDate)}부터)`}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {cumulativeData.length < 2 ? (
                 <EmptyState
                   message="데이터가 충분하지 않습니다"
-                  sub="2일 이상의 기록이 필요합니다"
+                  sub="기준일 이후 식사를 기록한 날이 2일 이상 필요합니다"
                 />
               ) : (
                 <CumulativeDeltaChart data={cumulativeData} />

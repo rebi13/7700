@@ -19,6 +19,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -38,6 +39,7 @@ export function GoalPage() {
 
   const form = useForm<GoalFormData>({
     resolver: zodResolver(schema),
+    defaultValues: { startDate: todayISO() },
   })
 
   const targetWeightKg = useWatch({ control: form.control, name: 'targetWeightKg' })
@@ -71,7 +73,7 @@ export function GoalPage() {
     await createGoal({
       start_weight_kg: currentWeight,
       target_weight_kg: data.targetWeightKg,
-      start_date: todayISO(),
+      start_date: data.startDate,
       target_date: data.targetDate,
     })
   }
@@ -94,6 +96,24 @@ export function GoalPage() {
               noValidate
             >
               <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="sm:col-span-2">
+                      <FormLabel>시작일</FormLabel>
+                      <FormControl>
+                        <Input type="date" max={todayISO()} {...field} value={field.value ?? ''} />
+                      </FormControl>
+                      <FormDescription>
+                        이 날부터 식사를 기록한 날의 적자를 누적합니다. 시작 체중은
+                        시작일과 관계없이 프로필의 현재 체중({currentWeight} kg)을 씁니다
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
                 <FormField
                   control={form.control}
                   name="targetWeightKg"

@@ -241,8 +241,6 @@ export interface DailySummaryRow {
   total_exercise_calories: number
   net_calories: number
   calorie_delta: number
-  cumulative_delta: number
-  estimated_weight_change_kg: number | null
   created_at: string
 }
 
@@ -254,8 +252,6 @@ export interface DailySummaryInsert {
   total_exercise_calories?: number
   net_calories?: number
   calorie_delta?: number
-  cumulative_delta?: number
-  estimated_weight_change_kg?: number | null
   created_at?: string
 }
 
@@ -264,8 +260,6 @@ export interface DailySummaryUpdate {
   total_exercise_calories?: number
   net_calories?: number
   calorie_delta?: number
-  cumulative_delta?: number
-  estimated_weight_change_kg?: number | null
 }
 
 // ─── llm_parse_logs ──────────────────────────────────────────────────────────

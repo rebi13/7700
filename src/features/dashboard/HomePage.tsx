@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw, Sparkles } from 'lucide-react'
 import { DateNavigator } from '@/features/dashboard/DateNavigator'
 import { useAuthStore } from '@/stores/authStore'
@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
+import { cumulativeDeltaUntil, estimateWeightChange } from '@/utils/calculations'
 import { formatDateShort, todayISO } from '@/utils/date'
 import { cn } from '@/lib/utils'
 
@@ -27,10 +28,12 @@ export function HomePage() {
   const { activeGoal, daysRemaining, dailyDeficit } = useGoalStore()
   const {
     todaySummary,
+    goalSummaries,
     isLoading,
     error: summaryError,
     calculateAndSave,
     fetchSummary,
+    fetchGoalSummaries,
     clearError: clearSummaryError,
   } = useSummaryStore()
   const {
@@ -73,12 +76,25 @@ export function HomePage() {
     loadSummary(selectedDate)
   }, [userId, tdee, loadSummary, selectedDate])
 
+  const startDate = activeGoal?.start_date
+  useEffect(() => {
+    if (!userId || !startDate) return
+    fetchGoalSummaries(startDate)
+  }, [userId, startDate, fetchGoalSummaries])
+
   const intake = todaySummary?.total_intake_calories ?? 0
   const exercise = todaySummary?.total_exercise_calories ?? 0
   const net = todaySummary?.net_calories ?? 0
   const delta = todaySummary?.calorie_delta ?? tdee ?? 0
-  const cumulative = todaySummary?.cumulative_delta ?? 0
-  const estimatedLoss = todaySummary?.estimated_weight_change_kg ?? 0
+  // 기준일부터 고른 날짜까지, 식사를 기록한 날의 적자만 더한다.
+  const { total: cumulative, recordedDays } = useMemo(
+    () =>
+      startDate
+        ? cumulativeDeltaUntil(goalSummaries, startDate, selectedDate)
+        : { total: 0, recordedDays: 0 },
+    [goalSummaries, startDate, selectedDate]
+  )
+  const estimatedLoss = estimateWeightChange(cumulative)
 
   const targetLoss = activeGoal
     ? activeGoal.start_weight_kg - activeGoal.target_weight_kg
@@ -203,6 +219,10 @@ export function HomePage() {
                     size="sm"
                   />
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                  {formatDateShort(activeGoal.start_date)}부터 식사를 기록한 {recordedDays}일 기준
+                </p>
 
                 <div className="flex flex-col gap-1.5">
                   <Progress value={progressPct} className="h-2" />

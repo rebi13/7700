@@ -59,3 +59,48 @@ export function calculateDailyDeficit({
 export function estimateWeightChange(calorieDelta: number): number {
   return Math.round((calorieDelta / 7700) * 100) / 100
 }
+
+interface DaySummary {
+  summary_date: string
+  total_intake_calories: number
+  calorie_delta: number
+}
+
+/**
+ * 식사를 하나라도 기록한 날인지. 섭취가 0 인 날은 굶은 날보다 기록을 깜빡한 날일
+ * 가능성이 훨씬 높고, 그대로 두면 TDEE 전체가 적자로 잡혀 누적이 부풀려진다.
+ */
+export function isRecordedDay(summary: Pick<DaySummary, 'total_intake_calories'>): boolean {
+  return summary.total_intake_calories > 0
+}
+
+/**
+ * 기준일(목표 시작일)부터 각 날짜까지의 누적 적자. 식사를 기록한 날만 더하고
+ * 날짜 순으로 돌려준다. 날짜는 'YYYY-MM-DD' 라 문자열 비교로 순서를 정한다.
+ */
+export function cumulativeDeltaSeries(
+  summaries: DaySummary[],
+  startDate: string
+): { date: string; cumulative: number }[] {
+  let running = 0
+  return summaries
+    .filter((s) => s.summary_date >= startDate && isRecordedDay(s))
+    .sort((a, b) => a.summary_date.localeCompare(b.summary_date))
+    .map((s) => {
+      running += s.calorie_delta
+      return { date: s.summary_date, cumulative: running }
+    })
+}
+
+/** 기준일부터 date 까지(포함) 식사를 기록한 날의 적자 합계와 그 날 수. */
+export function cumulativeDeltaUntil(
+  summaries: DaySummary[],
+  startDate: string,
+  date: string
+): { total: number; recordedDays: number } {
+  const series = cumulativeDeltaSeries(summaries, startDate).filter((p) => p.date <= date)
+  return {
+    total: series.at(-1)?.cumulative ?? 0,
+    recordedDays: series.length,
+  }
+}

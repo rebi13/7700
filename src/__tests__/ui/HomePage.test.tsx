@@ -14,6 +14,7 @@ import type { DailySummaryRow } from '@/types/database'
 
 const calculateAndSave = jest.fn()
 const fetchSummary = jest.fn()
+const fetchGoalSummaries = jest.fn()
 const fetchDailyFeedback = jest.fn()
 const generateDailyFeedback = jest.fn()
 
@@ -24,10 +25,12 @@ function resetToColdStart() {
   useGoalStore.setState({ activeGoal: null, daysRemaining: null, dailyDeficit: null })
   useSummaryStore.setState({
     todaySummary: null,
+    goalSummaries: [],
     isLoading: false,
     error: null,
     calculateAndSave,
     fetchSummary,
+    fetchGoalSummaries,
   })
   useFeedbackStore.setState({
     dailyFeedback: null,
@@ -59,8 +62,6 @@ function summary(overrides: Partial<DailySummaryRow> = {}): DailySummaryRow {
     total_exercise_calories: 0,
     net_calories: 0,
     calorie_delta: 0,
-    cumulative_delta: 0,
-    estimated_weight_change_kg: 0,
     created_at: '2026-08-18T00:00:00.000Z',
     ...overrides,
   } as DailySummaryRow
@@ -69,6 +70,7 @@ function summary(overrides: Partial<DailySummaryRow> = {}): DailySummaryRow {
 beforeEach(() => {
   calculateAndSave.mockReset()
   fetchSummary.mockReset()
+  fetchGoalSummaries.mockReset()
   fetchDailyFeedback.mockReset()
   generateDailyFeedback.mockReset()
   resetToColdStart()
@@ -233,5 +235,53 @@ describe('HomePage 날짜 이동', () => {
     render(<HomePage />)
 
     expect(screen.getByRole('button', { name: '다음 날' })).toBeDisabled()
+  })
+})
+
+describe('HomePage 누적 적자', () => {
+  const today = todayISO()
+  const start = addDays(today, -2)
+
+  beforeEach(() => {
+    signIn()
+    useProfileStore.setState({ tdee: 2500 })
+    useGoalStore.setState({
+      activeGoal: {
+        id: 'goal-1',
+        user_id: 'user-1',
+        start_weight_kg: 80,
+        target_weight_kg: 75,
+        start_date: start,
+        target_date: addDays(today, 100),
+        is_active: true,
+        created_at: '',
+        updated_at: '',
+      },
+      daysRemaining: 100,
+      dailyDeficit: 385,
+    })
+  })
+
+  it('목표 기준일부터의 요약을 조회한다', () => {
+    render(<HomePage />)
+
+    expect(fetchGoalSummaries).toHaveBeenCalledWith(start)
+  })
+
+  it('기준일 이전과 식사를 기록하지 않은 날은 누적에서 뺀다', () => {
+    useSummaryStore.setState({
+      goalSummaries: [
+        summary({ summary_date: addDays(start, -1), total_intake_calories: 1500, calorie_delta: 1000 }),
+        summary({ summary_date: start, total_intake_calories: 2000, calorie_delta: 500 }),
+        // 기록을 깜빡한 날: 섭취 0 이라 TDEE 전체가 적자로 잡혀 있다.
+        summary({ summary_date: addDays(start, 1), total_intake_calories: 0, calorie_delta: 2500 }),
+        summary({ summary_date: today, total_intake_calories: 2200, calorie_delta: 300 }),
+      ],
+    })
+
+    render(<HomePage />)
+
+    expect(screen.getByText('누적 적자').parentElement).toHaveTextContent('800 kcal')
+    expect(screen.getByText(/식사를 기록한 2일 기준/)).toBeInTheDocument()
   })
 })

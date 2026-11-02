@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { todayISO } from '@/utils/date'
 
 const activityEnum = z.enum(
   ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const,
@@ -64,6 +65,12 @@ export const profileSchema = z.discriminatedUnion('tdeeMode', [
 ])
 
 export const goalSchema = z.object({
+  // 누적 적자를 세기 시작하는 날. 지난 기록을 포함하려고 과거로 당길 수는 있지만
+  // 아직 오지 않은 날부터 셀 수는 없다. 'YYYY-MM-DD' 라 문자열 비교로 충분하다.
+  startDate: z
+    .string({ required_error: '시작일을 입력해 주세요' })
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
+    .refine((d) => d <= todayISO(), '시작일은 오늘이거나 그 이전이어야 합니다'),
   targetWeightKg: z.coerce
     .number({ invalid_type_error: '목표 체중을 입력해 주세요' })
     .min(30, '목표 체중은 30kg 이상이어야 합니다')
@@ -83,13 +90,15 @@ export const goalSchema = z.object({
  */
 export function makeGoalSchema(currentWeightKg?: number | null) {
   const limit = currentWeightKg && currentWeightKg > 0 ? currentWeightKg : null
-  return goalSchema.refine(
-    (data) => limit === null || data.targetWeightKg < limit,
-    {
+  return goalSchema
+    .refine((data) => limit === null || data.targetWeightKg < limit, {
       path: ['targetWeightKg'],
       message: `목표 체중은 현재 체중(${limit}kg)보다 작아야 합니다`,
-    }
-  )
+    })
+    .refine((data) => data.startDate < data.targetDate, {
+      path: ['targetDate'],
+      message: '목표일은 시작일 이후여야 합니다',
+    })
 }
 
 export type ProfileFormData = z.infer<typeof profileSchema>
