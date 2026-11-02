@@ -9,6 +9,7 @@ import { ErrorBanner } from '@/components/ErrorBanner'
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { toast } from '@/lib/toast'
+import { todayISO } from '@/utils/date'
 
 interface Props {
   open: boolean
@@ -34,6 +36,7 @@ export function GoalEditSheet({ open, onClose }: Props) {
     if (!open || !activeGoal) return
     clearError()
     form.reset({
+      startDate: activeGoal.start_date,
       targetWeightKg: activeGoal.target_weight_kg,
       targetDate: activeGoal.target_date,
     })
@@ -41,6 +44,7 @@ export function GoalEditSheet({ open, onClose }: Props) {
 
   const onSubmit = async (data: GoalFormData) => {
     await updateGoal({
+      start_date: data.startDate,
       target_weight_kg: data.targetWeightKg,
       target_date: data.targetDate,
     })
@@ -65,6 +69,26 @@ export function GoalEditSheet({ open, onClose }: Props) {
           className="flex flex-col gap-4"
           noValidate
         >
+          <FormField
+            control={form.control}
+            name="startDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>시작일 *</FormLabel>
+                <FormControl>
+                  <Input type="date" max={todayISO()} {...field} value={field.value ?? ''} />
+                </FormControl>
+                <FormDescription>
+                  이 날부터 식사를 기록한 날의 적자를 누적합니다. 시작 체중은
+                  목표를 만들 때의 프로필 체중
+                  {activeGoal && ` (${activeGoal.start_weight_kg} kg)`}이며 시작일을
+                  바꿔도 그대로입니다
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={form.control}
             name="targetWeightKg"

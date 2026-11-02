@@ -145,6 +145,7 @@ export function SettingsPage() {
           ) : activeGoal ? (
             <dl className="grid gap-2 text-sm">
               <InfoRow label="목표 체중" value={`${activeGoal.target_weight_kg} kg`} />
+              <InfoRow label="시작일" value={activeGoal.start_date} />
               <InfoRow label="목표일" value={activeGoal.target_date} />
               {daysRemaining !== null && (
                 <InfoRow label="남은 일수" value={`${daysRemaining}일`} />

@@ -1,4 +1,11 @@
-import { calculateBMR, calculateTDEE, calculateDailyDeficit, estimateWeightChange } from '@/utils/calculations'
+import {
+  calculateBMR,
+  calculateTDEE,
+  calculateDailyDeficit,
+  estimateWeightChange,
+  cumulativeDeltaSeries,
+  cumulativeDeltaUntil,
+} from '@/utils/calculations'
 
 jest.mock('@/utils/date', () => ({
   getDaysRemaining: jest.fn(),
@@ -67,5 +74,52 @@ describe('estimateWeightChange', () => {
     expect(estimateWeightChange(7700)).toBe(1)
     expect(estimateWeightChange(3850)).toBe(0.5)
     expect(estimateWeightChange(0)).toBe(0)
+  })
+})
+
+describe('누적 적자', () => {
+  const day = (summary_date: string, total_intake_calories: number, calorie_delta: number) => ({
+    summary_date,
+    total_intake_calories,
+    calorie_delta,
+  })
+
+  // 2500 kcal TDEE 기준. 11/02 는 앱만 열고 식사를 기록하지 않아 TDEE 전체가 적자로 잡힌 날.
+  const summaries = [
+    day('2026-11-03', 2000, 500),
+    day('2026-10-30', 1800, 700),
+    day('2026-11-01', 2300, 200),
+    day('2026-11-02', 0, 2500),
+  ]
+
+  it('기준일 이전 날짜는 세지 않는다', () => {
+    expect(cumulativeDeltaUntil(summaries, '2026-11-01', '2026-11-03')).toEqual({
+      total: 700,
+      recordedDays: 2,
+    })
+  })
+
+  it('식사를 기록하지 않은 날은 적자로 쌓지 않는다', () => {
+    const series = cumulativeDeltaSeries(summaries, '2026-10-01')
+    expect(series.map((p) => p.date)).not.toContain('2026-11-02')
+  })
+
+  it('날짜 순으로 이어 더한다', () => {
+    expect(cumulativeDeltaSeries(summaries, '2026-10-01')).toEqual([
+      { date: '2026-10-30', cumulative: 700 },
+      { date: '2026-11-01', cumulative: 900 },
+      { date: '2026-11-03', cumulative: 1400 },
+    ])
+  })
+
+  it('고른 날짜 이후의 기록은 포함하지 않는다', () => {
+    expect(cumulativeDeltaUntil(summaries, '2026-10-01', '2026-11-01').total).toBe(900)
+  })
+
+  it('기록이 없으면 0 이다', () => {
+    expect(cumulativeDeltaUntil([], '2026-11-01', '2026-11-03')).toEqual({
+      total: 0,
+      recordedDays: 0,
+    })
   })
 })

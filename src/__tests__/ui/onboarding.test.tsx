@@ -270,6 +270,44 @@ describe('GoalPage', () => {
     })
   })
 
+  it('시작 체중이 프로필 체중이라는 것을 시작일 옆에 알린다', () => {
+    withProfile()
+    render(<GoalPage />)
+
+    expect(screen.getByText(/프로필의 현재 체중\(80 kg\)/)).toBeInTheDocument()
+  })
+
+  it('시작일을 과거로 당겨 저장할 수 있다', async () => {
+    withProfile()
+    render(<GoalPage />)
+    const target = isoInDays(100)
+
+    setDate(/시작일/, isoInDays(-7))
+    await userEvent.type(screen.getByLabelText(/목표 체중/), '75')
+    setDate(/목표일/, target)
+    await start()
+
+    await waitFor(() => expect(createGoal).toHaveBeenCalledTimes(1))
+    expect(createGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ start_date: isoInDays(-7) })
+    )
+  })
+
+  it('미래 날짜를 시작일로 넣으면 저장하지 않는다', async () => {
+    withProfile()
+    render(<GoalPage />)
+
+    setDate(/시작일/, isoInDays(1))
+    await userEvent.type(screen.getByLabelText(/목표 체중/), '75')
+    setDate(/목표일/, isoInDays(100))
+    await start()
+
+    expect(
+      await screen.findByText('시작일은 오늘이거나 그 이전이어야 합니다')
+    ).toBeInTheDocument()
+    expect(createGoal).not.toHaveBeenCalled()
+  })
+
   /**
    * 이 앱은 감량 전용이다. 증량 목표를 받으면 감량량·하루 적자가 음수로 나와
    * 화면의 숫자가 전부 무의미해진다.
