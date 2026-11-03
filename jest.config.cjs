@@ -11,6 +11,8 @@ const transform = {
         moduleResolution: 'node',
         verbatimModuleSyntax: false,
         isolatedModules: false,
+        // supabase/functions/_shared 는 Deno 용이라 상대 import 에 .ts 를 붙인다.
+        allowImportingTsExtensions: true,
         jsx: 'react-jsx',
       },
     },

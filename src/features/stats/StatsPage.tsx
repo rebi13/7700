@@ -19,7 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { cumulativeDeltaSeries } from '@/utils/calculations'
+import { cumulativeDeltaSeries, isRecordedDay } from '@/utils/calculations'
 import { formatDateShort, todayISO } from '@/utils/date'
 import { getWeekRange } from '../../../supabase/functions/_shared/weekly-feedback.logic'
 
@@ -81,7 +81,8 @@ export function StatsPage() {
 
   const deltaData = useMemo(
     () =>
-      recentSummaries.slice(-7).map((summary) => ({
+      // 식사를 기록하지 않은 날은 TDEE 전체가 적자로 보이므로 막대에서 뺀다.
+      recentSummaries.filter(isRecordedDay).slice(-7).map((summary) => ({
         date: shortDate(summary.summary_date),
         delta: summary.calorie_delta,
         amount: Math.abs(summary.calorie_delta),
@@ -142,7 +143,7 @@ export function StatsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                일별 칼로리 적자/초과 (최근 7일)
+                일별 칼로리 적자/초과 (최근 기록 7일)
               </CardTitle>
               <CardAction>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">

@@ -64,22 +64,34 @@ export const profileSchema = z.discriminatedUnion('tdeeMode', [
   }),
 ])
 
-export const goalSchema = z.object({
-  // 누적 적자를 세기 시작하는 날. 지난 기록을 포함하려고 과거로 당길 수는 있지만
-  // 아직 오지 않은 날부터 셀 수는 없다. 'YYYY-MM-DD' 라 문자열 비교로 충분하다.
-  startDate: z
-    .string({ required_error: '시작일을 입력해 주세요' })
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
-    .refine((d) => d <= todayISO(), '시작일은 오늘이거나 그 이전이어야 합니다'),
-  targetWeightKg: z.coerce
-    .number({ invalid_type_error: '목표 체중을 입력해 주세요' })
-    .min(30, '목표 체중은 30kg 이상이어야 합니다')
-    .max(300, '목표 체중은 300kg 이하여야 합니다'),
-  targetDate: z
-    .string({ required_error: '목표일을 입력해 주세요' })
-    .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
-    .refine((d) => new Date(d) > new Date(), '목표일은 오늘 이후여야 합니다'),
-})
+/**
+ * 목표일은 오늘 이후여야 한다. 다만 이미 지난 목표를 고칠 때는 목표일을 그대로 두고
+ * 시작일·목표 체중만 바꿀 수 있어야 하므로, 저장된 목표일(savedTargetDate)은 통과시킨다.
+ * 날짜는 로컬 기준 'YYYY-MM-DD' 문자열로 비교한다(`new Date(s)` 는 UTC 자정이다).
+ */
+function goalObject(savedTargetDate?: string) {
+  return z.object({
+    // 누적 적자를 세기 시작하는 날. 지난 기록을 포함하려고 과거로 당길 수는 있지만
+    // 아직 오지 않은 날부터 셀 수는 없다. 'YYYY-MM-DD' 라 문자열 비교로 충분하다.
+    startDate: z
+      .string({ required_error: '시작일을 입력해 주세요' })
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
+      .refine((d) => d <= todayISO(), '시작일은 오늘이거나 그 이전이어야 합니다'),
+    targetWeightKg: z.coerce
+      .number({ invalid_type_error: '목표 체중을 입력해 주세요' })
+      .min(30, '목표 체중은 30kg 이상이어야 합니다')
+      .max(300, '목표 체중은 300kg 이하여야 합니다'),
+    targetDate: z
+      .string({ required_error: '목표일을 입력해 주세요' })
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식으로 입력해 주세요')
+      .refine(
+        (d) => d > todayISO() || d === savedTargetDate,
+        '목표일은 오늘 이후여야 합니다'
+      ),
+  })
+}
+
+export const goalSchema = goalObject()
 
 /**
  * 이 앱은 감량 전용이다 (7700kcal = 1kg). 목표 체중이 현재 체중보다 크거나 같으면
@@ -88,9 +100,12 @@ export const goalSchema = z.object({
  * 현재 체중은 프로필에 있어 스키마 밖에서 와야 한다. 그래서 스키마를 만들어 주는
  * 함수로 둔다. 프로필이 아직 없으면(currentWeightKg 없음) 이 검사만 건너뛴다.
  */
-export function makeGoalSchema(currentWeightKg?: number | null) {
+export function makeGoalSchema(
+  currentWeightKg?: number | null,
+  options: { savedTargetDate?: string } = {}
+) {
   const limit = currentWeightKg && currentWeightKg > 0 ? currentWeightKg : null
-  return goalSchema
+  return goalObject(options.savedTargetDate)
     .refine((data) => limit === null || data.targetWeightKg < limit, {
       path: ['targetWeightKg'],
       message: `목표 체중은 현재 체중(${limit}kg)보다 작아야 합니다`,
