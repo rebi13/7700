@@ -29,7 +29,11 @@ export function GoalEditSheet({ open, onClose }: Props) {
 
   const currentWeight = useProfileStore((st) => st.profile?.current_weight_kg)
 
-  const schema = useMemo(() => makeGoalSchema(currentWeight), [currentWeight])
+  const savedTargetDate = activeGoal?.target_date
+  const schema = useMemo(
+    () => makeGoalSchema(currentWeight, { savedTargetDate }),
+    [currentWeight, savedTargetDate]
+  )
   const form = useForm<GoalFormData>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
