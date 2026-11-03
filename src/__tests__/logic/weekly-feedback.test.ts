@@ -68,6 +68,16 @@ describe('computeWeeklyStats', () => {
     expect(stats.weightChange).toBeNull()
   })
 
+  it('식사를 기록하지 않은 날은 기록 일수·평균·적자 일수에서 뺀다', () => {
+    // 앱만 열고 식사를 기록하지 않은 날: 섭취 0, TDEE 전체가 적자로 잡혀 있다.
+    const withForgotten = [...summaries, makeSummary('2026-07-02', 0, 0, 2500)]
+    const stats = computeWeeklyStats(withForgotten, [])
+    expect(stats.activeDays).toBe(3)
+    expect(stats.avgIntake).toBe(Math.round((1800 + 2200 + 1600) / 3))
+    expect(stats.avgDelta).toBe(Math.round((500 - 100 + 700) / 3))
+    expect(stats.deficitDays).toBe(2)
+  })
+
   it('기록이 없으면 avgIntake가 0이다', () => {
     const stats = computeWeeklyStats([], [])
     expect(stats.avgIntake).toBe(0)

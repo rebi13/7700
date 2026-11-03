@@ -8,6 +8,8 @@
     "types": ["vite/client", "jest"],
     "strict": true,
     "noEmit": true,
+    // supabase/functions/_shared 는 Deno 가 읽으므로 상대 경로에 .ts 를 붙여야 한다.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,

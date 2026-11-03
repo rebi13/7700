@@ -1,5 +1,8 @@
 import type { Gender, ActivityLevel } from '@/types/database'
 import { getDaysRemaining } from '@/utils/date'
+import { isRecordedDay } from '../../supabase/functions/_shared/daily-summary.logic.ts'
+
+export { isRecordedDay }
 
 const ACTIVITY_MULTIPLIERS: Record<ActivityLevel, number> = {
   sedentary: 1.2,
@@ -64,14 +67,6 @@ interface DaySummary {
   summary_date: string
   total_intake_calories: number
   calorie_delta: number
-}
-
-/**
- * 식사를 하나라도 기록한 날인지. 섭취가 0 인 날은 굶은 날보다 기록을 깜빡한 날일
- * 가능성이 훨씬 높고, 그대로 두면 TDEE 전체가 적자로 잡혀 누적이 부풀려진다.
- */
-export function isRecordedDay(summary: Pick<DaySummary, 'total_intake_calories'>): boolean {
-  return summary.total_intake_calories > 0
 }
 
 /**

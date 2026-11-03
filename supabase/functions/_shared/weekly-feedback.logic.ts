@@ -1,3 +1,5 @@
+import { isRecordedDay } from './daily-summary.logic.ts'
+
 export interface DailySummaryEntry {
   summary_date: string
   total_intake_calories: number
@@ -26,9 +28,11 @@ export interface WeeklyStats {
 }
 
 export function computeWeeklyStats(
-  summaries: DailySummaryEntry[],
+  allSummaries: DailySummaryEntry[],
   weights: WeightEntry[],
 ): WeeklyStats {
+  // 앱만 열고 식사를 기록하지 않은 날은 평균 섭취를 낮추고 적자를 부풀리므로 뺀다.
+  const summaries = allSummaries.filter(isRecordedDay)
   const activeDays = summaries.length
   const exerciseDays = summaries.filter(s => s.total_exercise_calories > 0).length
   const avgIntake = activeDays > 0
