@@ -9,7 +9,7 @@ jest.mock('@/lib/supabase', () => ({
 }))
 
 beforeEach(() => {
-  useAiStore.setState({ isEstimating: false, error: null })
+  useAiStore.setState({ isEstimating: false, isParsing: false, error: null })
   mockInvoke.mockReset()
 })
 
@@ -57,5 +57,36 @@ describe('estimateCalories', () => {
     resolveInvoke({ data: null, error: { message: 'err' } })
     await promise
     expect(useAiStore.getState().isEstimating).toBe(false)
+  })
+})
+
+describe('parseLog', () => {
+  it('문장과 체중을 parse-log 로 보내고 항목을 돌려준다', async () => {
+    const items = [{ kind: 'weight', day_offset: 0, weight_kg: 68 }]
+    mockInvoke.mockResolvedValue({ data: { items }, error: null })
+
+    const result = await useAiStore.getState().parseLog('체중 68', 68.5)
+
+    expect(mockInvoke).toHaveBeenCalledWith('parse-log', {
+      body: { text: '체중 68', weight_kg: 68.5 },
+    })
+    expect(result).toEqual(items)
+    expect(useAiStore.getState().isParsing).toBe(false)
+  })
+
+  it('실패하면 error 를 남기고 null 을 돌려준다', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'Input too long' } })
+
+    const result = await useAiStore.getState().parseLog('...')
+
+    expect(result).toBeNull()
+    expect(useAiStore.getState().isParsing).toBe(false)
+    expect(useAiStore.getState().error).toBe('입력이 너무 깁니다. 1000자 이내로 줄여 주세요.')
+  })
+
+  it('응답에 items 배열이 없으면 실패로 본다', async () => {
+    mockInvoke.mockResolvedValue({ data: { foo: 1 }, error: null })
+    expect(await useAiStore.getState().parseLog('점심 김밥')).toBeNull()
+    expect(useAiStore.getState().error).toBe('기록을 정리하지 못했습니다')
   })
 })

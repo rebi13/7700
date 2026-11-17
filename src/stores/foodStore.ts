@@ -22,6 +22,11 @@ interface FoodState {
   suggestions: FoodRow[]
   lookup: (name: string) => Promise<FoodRow | null>
   search: (prefix: string) => Promise<FoodRow[]>
+  /**
+   * 이름을 포함하는 다른 저장 음식(같은 메뉴의 가게·집별 변형)을 찾는다.
+   * "김치찌개" → "회사 앞 김치찌개", "김치찌개 (집)". 정확히 같은 이름은 뺀다.
+   */
+  findVariants: (name: string) => Promise<FoodRow[]>
   upsertFromEstimate: (input: UpsertFoodInput) => Promise<void>
   recordUsage: (normalizedName: string) => Promise<void>
   clearSuggestions: () => void
@@ -70,6 +75,23 @@ export const useFoodStore = create<FoodState>((set) => ({
     const rows = data ?? []
     set({ suggestions: rows })
     return rows
+  },
+
+  findVariants: async (name) => {
+    const userId = useAuthStore.getState().user?.id
+    const norm = normalizeFoodName(name)
+    if (!userId || !norm) return []
+    const { data, error } = await supabase
+      .from('foods')
+      .select('*')
+      .eq('user_id', userId)
+      .ilike('normalized_name', `%${escapeLike(norm)}%`)
+      .neq('normalized_name', norm)
+      .order('use_count', { ascending: false })
+      .order('updated_at', { ascending: false })
+      .limit(5)
+    if (error) return []
+    return data ?? []
   },
 
   upsertFromEstimate: async (input) => {

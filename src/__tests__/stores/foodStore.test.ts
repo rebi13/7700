@@ -7,6 +7,7 @@ const mockMaybeSingle = jest.fn()
 const mockLimit = jest.fn()
 const mockUpsert = jest.fn()
 const mockUpdate = jest.fn()
+const neqCalls: unknown[][] = []
 
 const eqCalls: unknown[][] = []
 const ilikeCalls: unknown[][] = []
@@ -17,6 +18,10 @@ function makeChain() {
     select: () => chain,
     eq: (...a: unknown[]) => {
       eqCalls.push(a)
+      return chain
+    },
+    neq: (...a: unknown[]) => {
+      neqCalls.push(a)
       return chain
     },
     ilike: (...a: unknown[]) => {
@@ -70,6 +75,7 @@ beforeEach(() => {
   mockUpdate.mockReset()
   eqCalls.length = 0
   ilikeCalls.length = 0
+  neqCalls.length = 0
   orderCalls.length = 0
   useAuthStore.setState({ user: { id: 'u1' } as never })
   useFoodStore.setState({ suggestions: [] })
@@ -127,6 +133,33 @@ describe('search', () => {
     expect(rows).toEqual([])
     expect(useFoodStore.getState().suggestions).toEqual([])
     expect(mockFrom).not.toHaveBeenCalled()
+  })
+})
+
+describe('findVariants', () => {
+  it('이름을 포함하는 다른 음식을 찾되 정확히 같은 이름은 뺀다', async () => {
+    const variant = food({ normalized_name: '회사 앞 김치찌개', display_name: '회사 앞 김치찌개' })
+    mockLimit.mockResolvedValue({ data: [variant] })
+
+    const rows = await useFoodStore.getState().findVariants(' 김치찌개 ')
+
+    expect(rows).toEqual([variant])
+    expect(ilikeCalls[0]).toEqual(['normalized_name', '%김치찌개%'])
+    expect(neqCalls[0]).toEqual(['normalized_name', '김치찌개'])
+    expect(orderCalls[0]).toEqual(['use_count', { ascending: false }])
+    // 자동완성 목록은 건드리지 않는다
+    expect(useFoodStore.getState().suggestions).toEqual([])
+  })
+
+  it('LIKE 특수문자는 리터럴로 찾는다', async () => {
+    mockLimit.mockResolvedValue({ data: [] })
+    await useFoodStore.getState().findVariants('100%_주스')
+    expect(ilikeCalls[0]).toEqual(['normalized_name', '%100\\%\\_주스%'])
+  })
+
+  it('DB 오류면 빈 배열을 돌려준다', async () => {
+    mockLimit.mockResolvedValue({ data: null, error: { message: 'boom' } })
+    expect(await useFoodStore.getState().findVariants('김치찌개')).toEqual([])
   })
 })
 
