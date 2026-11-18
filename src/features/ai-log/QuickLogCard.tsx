@@ -2,7 +2,6 @@ import { useRef, useState, type ComponentProps } from 'react'
 import { Sparkles, X } from 'lucide-react'
 import { useAiStore, type ParsedLogItem } from '@/stores/aiStore'
 import { useFoodStore } from '@/stores/foodStore'
-import { useProfileStore } from '@/stores/profileStore'
 import { useMealStore } from '@/stores/mealStore'
 import { useExerciseStore } from '@/stores/exerciseStore'
 import { MEAL_TYPES } from '@/features/meal/options'
@@ -29,7 +28,7 @@ import { cn } from '@/lib/utils'
 import { formatDateShort } from '@/utils/date'
 
 const PLACEHOLDER =
-  '예) 점심 회사 앞 김치찌개 / 아침엔 토스트랑 라떼, 저녁 치킨 반 마리. 30분 러닝했고 체중 68.2'
+  '예) 점심 회사 앞 김치찌개 / 아침엔 토스트랑 라떼, 저녁 치킨 반 마리. 러닝 30분 워치로 320kcal, 체중 68.2'
 
 const KIND_LABEL: Record<LogDraft['kind'], string> = {
   meal: '식사',
@@ -64,7 +63,6 @@ export function QuickLogCard({ date, onSaved }: Props) {
   const parseLog = useAiStore((st) => st.parseLog)
   const isParsing = useAiStore((st) => st.isParsing)
   const parseQuota = useAiStore((st) => st.parseQuota)
-  const weightKg = useProfileStore((st) => st.profile?.current_weight_kg ?? null)
 
   const [text, setText] = useState('')
   const [drafts, setDrafts] = useState<LogDraft[] | null>(null)
@@ -80,7 +78,7 @@ export function QuickLogCard({ date, onSaved }: Props) {
     if (lastParse.current && sameText(lastParse.current.text, text)) {
       items = lastParse.current.items
     } else {
-      items = await parseLog(text, weightKg)
+      items = await parseLog(text)
       if (!items) {
         toast.error(useAiStore.getState().error ?? '기록을 정리하지 못했습니다')
         return
@@ -399,33 +397,40 @@ function ExerciseDraftFields({
   onChange: (patch: Partial<ExerciseDraft>) => void
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Input
-        aria-label="운동 이름"
-        className="min-w-0 flex-1"
-        value={draft.exercise_name}
-        onChange={(e) => onChange({ exercise_name: e.target.value })}
-      />
-      <div className="flex items-center gap-1">
-        <NumberInput
-          aria-label="운동 시간"
-          inputMode="numeric"
-          className="w-16 text-right"
-          value={draft.duration_minutes}
-          onValueChange={(n) => onChange({ duration_minutes: n })}
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          aria-label="운동 이름"
+          className="min-w-0 flex-1"
+          value={draft.exercise_name}
+          onChange={(e) => onChange({ exercise_name: e.target.value })}
         />
-        <span className="text-sm text-muted-foreground">분</span>
+        <div className="flex items-center gap-1">
+          <NumberInput
+            aria-label="운동 시간"
+            inputMode="numeric"
+            className="w-16 text-right"
+            value={draft.duration_minutes}
+            onValueChange={(n) => onChange({ duration_minutes: n })}
+          />
+          <span className="text-sm text-muted-foreground">분</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <NumberInput
+            aria-label="소모 칼로리"
+            inputMode="numeric"
+            className="w-20 text-right"
+            value={draft.calories_burned}
+            onValueChange={(n) => onChange({ calories_burned: n })}
+          />
+          <span className="text-sm text-muted-foreground">kcal</span>
+        </div>
       </div>
-      <div className="flex items-center gap-1">
-        <NumberInput
-          aria-label="소모 칼로리"
-          inputMode="numeric"
-          className="w-20 text-right"
-          value={draft.calories_burned}
-          onValueChange={(n) => onChange({ calories_burned: n })}
-        />
-        <span className="text-sm text-muted-foreground">kcal</span>
-      </div>
+      {draft.calories_burned === null && (
+        <p className="text-xs text-muted-foreground">
+          소모 칼로리는 추정하지 않아요. 워치·기구에 찍힌 값을 넣어 주세요.
+        </p>
+      )}
     </div>
   )
 }

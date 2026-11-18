@@ -7,16 +7,8 @@ import {
 } from '../../../supabase/functions/_shared/parse-log.logic'
 
 describe('buildParseUserMessage', () => {
-  it('기록은 <user_log> 안에 데이터로 넣고, 체중은 태그 밖에 둔다', () => {
-    expect(buildParseUserMessage(' 점심 김치찌개 ', 68.2)).toBe(
-      '<user_log>\n점심 김치찌개\n</user_log>\n사용자 체중: 68.2kg (운동 소모 칼로리 계산에 사용)'
-    )
-  })
-
-  it('체중이 없으면 기록만 보낸다', () => {
-    expect(buildParseUserMessage('점심 김치찌개', null)).toBe(
-      '<user_log>\n점심 김치찌개\n</user_log>'
-    )
+  it('기록은 <user_log> 안에 데이터로만 넣는다', () => {
+    expect(buildParseUserMessage(' 점심 김치찌개 ')).toBe('<user_log>\n점심 김치찌개\n</user_log>')
   })
 })
 
@@ -77,6 +69,13 @@ describe('parseParseResponse', () => {
   it('가게 이름 같은 수식어를 지우지 않는다', () => {
     const [item] = parseParseResponse({ items: [meal] })
     expect(item).toMatchObject({ food_name: '회사 앞 김치찌개' })
+  })
+
+  it('소모 칼로리를 말하지 않은 운동은 null 그대로 둔다', () => {
+    const [item] = parseParseResponse({
+      items: [{ kind: 'exercise', day_offset: 0, exercise_name: '러닝', duration_minutes: 30, calories_burned: null }],
+    })
+    expect(item).toMatchObject({ calories_burned: null })
   })
 
   it('범위를 벗어난 칼로리는 null 로 두어 사용자가 채우게 한다', () => {

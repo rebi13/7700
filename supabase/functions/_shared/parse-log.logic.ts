@@ -64,12 +64,8 @@ export function wrapUserText(tag: string, text: string): string {
   return `<${tag}>\n${text.replace(tagPattern, '').trim()}\n</${tag}>`
 }
 
-export function buildParseUserMessage(text: string, weightKg?: number | null): string {
-  const lines = [wrapUserText('user_log', text)]
-  if (typeof weightKg === 'number' && weightKg > 0) {
-    lines.push(`사용자 체중: ${weightKg}kg (운동 소모 칼로리 계산에 사용)`)
-  }
-  return lines.join('\n')
+export function buildParseUserMessage(text: string): string {
+  return wrapUserText('user_log', text)
 }
 
 const nullable = (type: string) => ({ type: [type, 'null'] })

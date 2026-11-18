@@ -61,14 +61,14 @@ describe('estimateCalories', () => {
 })
 
 describe('parseLog', () => {
-  it('문장과 체중을 parse-log 로 보내고 항목을 돌려준다', async () => {
+  it('문장을 parse-log 로 보내고 항목을 돌려준다', async () => {
     const items = [{ kind: 'weight', day_offset: 0, weight_kg: 68 }]
     mockInvoke.mockResolvedValue({ data: { items }, error: null })
 
-    const result = await useAiStore.getState().parseLog('체중 68', 68.5)
+    const result = await useAiStore.getState().parseLog('체중 68')
 
     expect(mockInvoke).toHaveBeenCalledWith('parse-log', {
-      body: { text: '체중 68', weight_kg: 68.5 },
+      body: { text: '체중 68' },
     })
     expect(result).toEqual(items)
     expect(useAiStore.getState().isParsing).toBe(false)

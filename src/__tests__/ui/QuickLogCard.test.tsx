@@ -10,7 +10,6 @@ import { useMealStore } from '@/stores/mealStore'
 import { useExerciseStore } from '@/stores/exerciseStore'
 import { useWeightStore } from '@/stores/weightStore'
 import { useSummaryStore } from '@/stores/summaryStore'
-import { useProfileStore } from '@/stores/profileStore'
 import { toast } from '@/lib/toast'
 import { QuickLogCard } from '@/features/ai-log/QuickLogCard'
 import type { FoodRow } from '@/types/database'
@@ -96,7 +95,6 @@ beforeEach(() => {
   useExerciseStore.setState({ error: null, addLog: addExercise, peekLogs: peekExercises })
   useWeightStore.setState({ error: null, addLog: addWeight })
   useSummaryStore.setState({ calculateAndSave })
-  useProfileStore.setState({ profile: { current_weight_kg: 70 } as never })
 })
 
 async function parse(text = '점심 김치찌개, 30분 러닝, 어제 체중 68.2') {
@@ -107,10 +105,10 @@ async function parse(text = '점심 김치찌개, 30분 러닝, 어제 체중 68
 }
 
 describe('QuickLogCard', () => {
-  it('문장과 프로필 체중으로 정리를 요청하고 항목별 미리보기를 보여준다', async () => {
+  it('문장으로 정리를 요청하고 항목별 미리보기를 보여준다', async () => {
     await parse()
 
-    expect(parseLog).toHaveBeenCalledWith('점심 김치찌개, 30분 러닝, 어제 체중 68.2', 70)
+    expect(parseLog).toHaveBeenCalledWith('점심 김치찌개, 30분 러닝, 어제 체중 68.2')
     expect(screen.getByLabelText('음식 이름')).toHaveValue('김치찌개')
     expect(screen.getByLabelText('칼로리')).toHaveValue('550')
     expect(screen.getByLabelText('운동 이름')).toHaveValue('러닝')
@@ -177,6 +175,35 @@ describe('QuickLogCard', () => {
     expect(weight).toHaveValue('67.')
     await userEvent.type(weight, '5')
     expect(weight).toHaveValue('67.5')
+  })
+
+  it('사용자가 말한 소모 칼로리는 그대로 쓰고 안내를 띄우지 않는다', async () => {
+    await parse()
+    expect(screen.getByLabelText('소모 칼로리')).toHaveValue('300')
+    expect(screen.queryByText(/소모 칼로리는 추정하지 않아요/)).not.toBeInTheDocument()
+  })
+
+  it('소모 칼로리를 말하지 않으면 비워 두고 직접 넣게 한다', async () => {
+    parseLog.mockResolvedValue([
+      { kind: 'exercise', day_offset: 0, exercise_name: '러닝', duration_minutes: 30, calories_burned: null },
+    ])
+    render(<QuickLogCard date={DATE} />)
+    await userEvent.type(screen.getByLabelText('기록 내용'), '러닝 30분')
+    await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
+
+    expect(await screen.findByText(/소모 칼로리는 추정하지 않아요/)).toBeInTheDocument()
+    expect(screen.getByLabelText('소모 칼로리')).toHaveValue('')
+
+    await userEvent.click(screen.getByRole('button', { name: '1건 저장' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('소모 칼로리를 입력해 주세요')
+    expect(addExercise).not.toHaveBeenCalled()
+
+    await userEvent.type(screen.getByLabelText('소모 칼로리'), '280')
+    expect(screen.queryByText(/소모 칼로리는 추정하지 않아요/)).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '1건 저장' }))
+    await waitFor(() =>
+      expect(addExercise).toHaveBeenCalledWith(expect.objectContaining({ calories_burned: 280 }))
+    )
   })
 
   it('다시 입력 후 문장을 안 고치고 정리하면 AI 를 다시 부르지 않는다', async () => {

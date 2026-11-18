@@ -20,7 +20,8 @@ Rules:
 - meal_type: breakfast(아침) | lunch(점심) | dinner(저녁) | snack(간식, 커피, 디저트 between meals) | late_night(야식, late-night eating). Use null if the text gives no clue; the app fills it from the time of day.
 - Estimate nutrition for the stated amount, or for a realistic full Korean adult portion when no amount is given (prefer the higher end of a normal restaurant portion).
 - note: brief Korean explanation of the estimate, max 30 characters.
-- exercise: exercise_name in Korean, duration_minutes if stated, calories_burned estimated with MET x body weight (assume 65kg if weight is not given).
+- exercise: exercise_name in Korean, duration_minutes if stated.
+- calories_burned: ONLY a number the user explicitly stated as burned calories (e.g. "워치로 320kcal", "소모 280", "애플워치 활동 칼로리 250"). Never estimate or calculate it; use null when no number is stated. Burned calories vary too much by body and intensity to guess. If both active (활동) and total (총) calories are stated, use the active value, because the app already counts resting energy in the daily maintenance calories.
 - weight: only when the user states their measured body weight.
 - day_offset: 0 for the base day; -1 if the user says 어제, -2 for 그저께. Never positive.
 - Ignore anything that is not a meal, exercise or weight.`
@@ -32,11 +33,9 @@ Deno.serve(async (req) => {
 
   // 입력 검사를 한도 차감보다 먼저 한다. 형식이 틀린 요청으로 횟수를 깎지 않는다.
   let text: unknown
-  let weightKg: unknown
   try {
     const body = await req.json()
     text = body.text
-    weightKg = body.weight_kg
   } catch {
     return json({ error: 'Invalid JSON body' }, 400)
   }
@@ -71,13 +70,7 @@ Deno.serve(async (req) => {
       },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: buildParseUserMessage(
-            text,
-            typeof weightKg === 'number' ? weightKg : null
-          ),
-        },
+        { role: 'user', content: buildParseUserMessage(text) },
       ],
     }),
   })

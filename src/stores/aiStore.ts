@@ -22,7 +22,7 @@ interface AiState {
   /** 오늘 남은 자연어 정리 횟수. 아직 한 번도 부르지 않았으면 null */
   parseQuota: { remaining: number; limit: number } | null
   /** 자연어 하루 기록을 항목으로 나눈다. 실패하면 error 에 안내 문구를 남기고 null */
-  parseLog: (text: string, weightKg?: number | null) => Promise<ParsedLogItem[] | null>
+  parseLog: (text: string) => Promise<ParsedLogItem[] | null>
 }
 
 export const useAiStore = create<AiState>((set) => ({
@@ -48,10 +48,10 @@ export const useAiStore = create<AiState>((set) => ({
   isParsing: false,
   parseQuota: null,
 
-  parseLog: async (text, weightKg) => {
+  parseLog: async (text) => {
     set({ isParsing: true, error: null })
     const { data, error } = await supabase.functions.invoke('parse-log', {
-      body: { text, weight_kg: weightKg ?? null },
+      body: { text },
     })
     if (error || !Array.isArray(data?.items)) {
       set({
