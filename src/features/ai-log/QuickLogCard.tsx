@@ -5,6 +5,8 @@ import { useFoodStore } from '@/stores/foodStore'
 import { useMealStore } from '@/stores/mealStore'
 import { useExerciseStore } from '@/stores/exerciseStore'
 import { MEAL_TYPES } from '@/features/meal/options'
+import { MEASURED_TIMINGS } from '@/features/weight/options'
+import { DAILY_WEIGHT_HINT } from '@/features/weight/dailyWeight'
 import {
   applyCandidate,
   buildDrafts,
@@ -443,15 +445,27 @@ function WeightDraftFields({
   onChange: (patch: Partial<WeightDraft>) => void
 }) {
   return (
-    <div className="flex items-center gap-1">
-      <NumberInput
-        aria-label="체중"
-        inputMode="decimal"
-        className="w-24 text-right"
-        value={draft.weight_kg}
-        onValueChange={(n) => onChange({ weight_kg: n })}
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1">
+        <NumberInput
+          aria-label="체중"
+          inputMode="decimal"
+          className="w-24 text-right"
+          value={draft.weight_kg}
+          onValueChange={(n) => onChange({ weight_kg: n })}
+        />
+        <span className="text-sm text-muted-foreground">kg</span>
+      </div>
+      <ChipGroup
+        aria-label="측정 시간대"
+        options={MEASURED_TIMINGS}
+        value={draft.measured_timing}
+        onChange={(v) => onChange({ measured_timing: v })}
+        deselectable
       />
-      <span className="text-sm text-muted-foreground">kg</span>
+      {draft.measured_timing === null && (
+        <p className="text-xs text-muted-foreground">{DAILY_WEIGHT_HINT}</p>
+      )}
     </div>
   )
 }

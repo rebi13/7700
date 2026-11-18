@@ -56,14 +56,24 @@ describe('parseParseResponse', () => {
       items: [
         meal,
         { kind: 'exercise', day_offset: 0, exercise_name: '러닝', duration_minutes: 30, calories_burned: 300 },
-        { kind: 'weight', day_offset: 0, weight_kg: 68.25 },
+        { kind: 'weight', day_offset: 0, weight_kg: 68.25, measured_timing: 'morning' },
       ],
     })
     expect(items).toEqual([
       { ...meal, calories: 650, protein_g: 30 },
       { kind: 'exercise', day_offset: 0, exercise_name: '러닝', duration_minutes: 30, calories_burned: 300 },
-      { kind: 'weight', day_offset: 0, weight_kg: 68.3 },
+      { kind: 'weight', day_offset: 0, weight_kg: 68.3, measured_timing: 'morning' },
     ])
+  })
+
+  it('체중 측정 시점이 없거나 모르는 값이면 null 로 둔다', () => {
+    const items = parseParseResponse({
+      items: [
+        { kind: 'weight', day_offset: 0, weight_kg: 68 },
+        { kind: 'weight', day_offset: 0, weight_kg: 68, measured_timing: 'noon' },
+      ],
+    })
+    expect(items.map((i) => i.kind === 'weight' && i.measured_timing)).toEqual([null, null])
   })
 
   it('가게 이름 같은 수식어를 지우지 않는다', () => {

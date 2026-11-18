@@ -160,7 +160,19 @@ export const PARSE_LOG_CASES: EvalCase[] = [
     id: 'weight',
     category: '체중',
     input: '아침 공복 체중 67.8',
-    checks: [count('weight', 1), weight(67.8)],
+    checks: [count('weight', 1), weight(67.8, 0, 'morning')],
+  },
+  {
+    id: 'weight-after-workout',
+    category: '체중',
+    input: '헬스 끝나고 바로 재보니 71.3',
+    checks: [count('weight', 1), weight(71.3, 0, 'after_workout')],
+  },
+  {
+    id: 'weight-no-timing',
+    category: '체중',
+    input: '체중 69.9, 저녁은 비빔국수',
+    checks: [count('weight', 1), weight(69.9, 0, null)],
   },
   {
     id: 'weight-goal-only',
@@ -215,7 +227,7 @@ export const PARSE_LOG_CASES: EvalCase[] = [
       meal({ name: ['회사 근처', '부대찌개'], meal_type: 'lunch' }),
       meal({ name: ['연어'], meal_type: 'dinner' }),
       exercise({ duration_minutes: 25, calories_burned: 260 }),
-      weight(70.1),
+      weight(70.1, 0, 'morning'),
     ],
   },
 ]

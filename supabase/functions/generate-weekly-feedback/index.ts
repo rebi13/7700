@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       .lte('summary_date', weekEnd),
     supabase
       .from('weight_logs')
-      .select('weight_date, weight_kg')
+      .select('weight_date, weight_kg, measured_timing, created_at')
       .eq('user_id', user.id)
       .gte('weight_date', weekStart)
       .lte('weight_date', weekEnd),

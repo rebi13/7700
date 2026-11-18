@@ -31,6 +31,7 @@ Rules:
 - exercise: exercise_name in Korean, duration_minutes if stated.
 - calories_burned: ONLY a number the user explicitly stated as burned calories (e.g. "워치로 320kcal", "소모 280", "애플워치 활동 칼로리 250"). Never estimate or calculate it; use null when no number is stated. Burned calories vary too much by body and intensity to guess. If both active (활동) and total (총) calories are stated, use the active value, because the app already counts resting energy in the daily maintenance calories.
 - weight: only when the user states their own measured body weight (not a goal weight).
+- measured_timing: when the weight was measured, only from what the user says. morning = right after waking up, 공복, 기상 직후, 아침 체중. after_workout = right after exercise (운동 후/운동 직후). afternoon = 오후/점심 먹고. evening = 저녁/자기 전. other = any other stated situation (e.g. 식후 바로, 샤워 후). Use null when the text gives no clue; do not guess from the meals or the time of day.
 - day_offset: 0 for the base day; -1 if the user says 어제, -2 for 그저께. Never positive.
 - Ignore anything that is not a meal, exercise or weight.`
 
@@ -55,7 +56,7 @@ export const PARSE_LOG_FEW_SHOT: { input: string; output: { items: ParsedLogItem
     output: {
       items: [
         { kind: 'meal', day_offset: -1, meal_type: 'late_night', food_name: '치킨 반 마리', calories: 1100, protein_g: 70, carbs_g: 40, fat_g: 70, confidence: 'medium', note: '후라이드 반 마리 기준' },
-        { kind: 'weight', day_offset: 0, weight_kg: 68.4 },
+        { kind: 'weight', day_offset: 0, weight_kg: 68.4, measured_timing: 'morning' },
       ],
     },
   },

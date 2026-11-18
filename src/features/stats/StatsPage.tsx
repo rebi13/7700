@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/card'
 import { cumulativeDeltaSeries, isRecordedDay } from '@/utils/calculations'
 import { formatDateShort, todayISO } from '@/utils/date'
+import { pickDailyWeights } from '@/features/weight/dailyWeight'
 import { getWeekRange } from '../../../supabase/functions/_shared/weekly-feedback.logic'
 
 /** YYYY-MM-DD → M/D */
@@ -70,12 +71,10 @@ export function StatsPage() {
 
   const weightData = useMemo(
     () =>
-      [...weightLogs]
-        .sort((a, b) => a.weight_date.localeCompare(b.weight_date))
-        .map((log) => ({
-          date: shortDate(log.weight_date),
-          weight: log.weight_kg,
-        })),
+      pickDailyWeights(weightLogs).map((log) => ({
+        date: shortDate(log.weight_date),
+        weight: log.weight_kg,
+      })),
     [weightLogs]
   )
 

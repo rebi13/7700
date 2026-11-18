@@ -76,13 +76,29 @@ describe('buildDrafts', () => {
     const drafts = await buildDrafts(
       [
         mealItem({ day_offset: -1 }),
-        { kind: 'weight', day_offset: 0, weight_kg: 68 },
+        { kind: 'weight', day_offset: 0, weight_kg: 68, measured_timing: null },
         { kind: 'exercise', day_offset: -2, exercise_name: '러닝', duration_minutes: 30, calories_burned: 300 },
       ],
       '2026-11-01',
       { lookup: async () => null, findVariants: async () => [] }
     )
     expect(drafts.map((d) => d.date)).toEqual(['2026-10-31', '2026-11-01', '2026-10-30'])
+  })
+
+  it('체중 측정 시점을 옮기고, 이전 응답처럼 값이 없으면 null 로 둔다', async () => {
+    const drafts = await buildDrafts(
+      [
+        { kind: 'weight', day_offset: 0, weight_kg: 68, measured_timing: 'after_workout' },
+        // 측정 시점을 모르는 이전 버전 함수의 응답
+        { kind: 'weight', day_offset: 0, weight_kg: 67.5 } as unknown as ParsedLogItem,
+      ],
+      DATE,
+      { lookup: async () => null, findVariants: async () => [] }
+    )
+    expect(drafts.map((d) => d.kind === 'weight' && d.measured_timing)).toEqual([
+      'after_workout',
+      null,
+    ])
   })
 
   it('라이브러리 조회가 실패해도 AI 추정으로 초안을 만든다', async () => {
@@ -274,6 +290,7 @@ describe('saveDrafts', () => {
       kind: 'weight' as const,
       date: '2026-11-17',
       weight_kg: 68,
+      measured_timing: 'morning' as const,
       duplicate: false,
       skip: false,
     }
@@ -283,7 +300,11 @@ describe('saveDrafts', () => {
     expect(result.failed).toEqual([exercise])
     expect(result.dates.sort()).toEqual(['2026-11-17', DATE])
     expect(addMeal).toHaveBeenCalledTimes(1)
-    expect(addWeight).toHaveBeenCalledWith({ weight_kg: 68, weight_date: '2026-11-17' })
+    expect(addWeight).toHaveBeenCalledWith({
+      weight_kg: 68,
+      weight_date: '2026-11-17',
+      measured_timing: 'morning',
+    })
     // 체중만 바뀐 날은 일일 요약을 다시 계산하지 않는다
     expect(calculateAndSave).toHaveBeenCalledTimes(1)
     expect(calculateAndSave).toHaveBeenCalledWith(DATE)
