@@ -35,7 +35,7 @@ const describeItems = (items: ParsedLogItem[]) =>
         ? `meal(${i.food_name}/${i.meal_type}/${i.day_offset})`
         : i.kind === 'exercise'
           ? `exercise(${i.exercise_name}/${i.duration_minutes}분/${i.calories_burned}kcal)`
-          : `weight(${i.weight_kg}/${i.day_offset})`
+          : `weight(${i.weight_kg}/${i.day_offset}/${i.measured_timing})`
     )
     .join(', ') || '(없음)'
 
@@ -103,11 +103,21 @@ export function noBurnedEstimate(): Check {
   }
 }
 
-export function weight(kg: number, day_offset = 0): Check {
+/** 그 체중이 있다. timing 을 주면 측정 시점까지 맞아야 한다(null 은 '모름'). */
+export function weight(
+  kg: number,
+  day_offset = 0,
+  timing?: ParsedWeight['measured_timing']
+): Check {
   return (items) =>
-    weights(items).some((w) => w.weight_kg === kg && w.day_offset === day_offset)
+    weights(items).some(
+      (w) =>
+        w.weight_kg === kg &&
+        w.day_offset === day_offset &&
+        (timing === undefined || w.measured_timing === timing)
+    )
       ? null
-      : `체중 ${kg}kg(day ${day_offset}) 없음: ${describeItems(items)}`
+      : `체중 ${kg}kg(day ${day_offset}, ${timing ?? '시점 무관'}) 없음: ${describeItems(items)}`
 }
 
 /** 모든 식사 칼로리가 min 이상(주입으로 값을 바꾸지 못했는지) */

@@ -9,7 +9,13 @@ import { syncFoodLibrary } from '@/features/meal/foodLibrary'
 import { addDays, toISODate } from '@/utils/date'
 import { normalizeFoodName } from '@/utils/foodName'
 import type { ParsedLogItem } from '@/stores/aiStore'
-import type { ExerciseLogRow, FoodRow, MealLogRow, MealType } from '@/types/database'
+import type {
+  ExerciseLogRow,
+  FoodRow,
+  MealLogRow,
+  MealType,
+  MeasuredTiming,
+} from '@/types/database'
 
 type Confidence = 'high' | 'medium' | 'low'
 
@@ -52,6 +58,8 @@ export interface ExerciseDraft extends DraftBase {
 export interface WeightDraft extends DraftBase {
   kind: 'weight'
   weight_kg: number | null
+  /** 잰 시점. 통계는 기상 직후 값을 그날 체중으로 쓰므로 미리보기에서 고르게 한다. */
+  measured_timing: MeasuredTiming | null
 }
 
 export type LogDraft = MealDraft | ExerciseDraft | WeightDraft
@@ -149,6 +157,8 @@ export async function buildDrafts(
           duplicate: false,
           skip: false,
           weight_kg: item.weight_kg,
+          // 이전 버전 함수 응답에는 이 값이 없다.
+          measured_timing: item.measured_timing ?? null,
         }
       }
 
@@ -245,6 +255,7 @@ function toSchemaResult(draft: LogDraft) {
       return weightSchema.safeParse({
         weight_kg: draft.weight_kg ?? undefined,
         weight_date: draft.date,
+        measured_timing: draft.measured_timing,
       })
   }
 }
@@ -323,6 +334,7 @@ async function saveOne(draft: LogDraft): Promise<boolean> {
       await useWeightStore.getState().addLog({
         weight_kg: draft.weight_kg as number,
         weight_date: draft.date,
+        measured_timing: draft.measured_timing,
       })
       return !useWeightStore.getState().error
     }

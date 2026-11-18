@@ -8,6 +8,7 @@
 
 export type ParsedMealType = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'late_night'
 export type ParsedConfidence = 'high' | 'medium' | 'low'
+export type ParsedMeasuredTiming = 'morning' | 'afternoon' | 'evening' | 'after_workout' | 'other'
 
 export interface ParsedMeal {
   kind: 'meal'
@@ -35,6 +36,8 @@ export interface ParsedWeight {
   kind: 'weight'
   day_offset: number
   weight_kg: number
+  /** 잰 시점. 말하지 않았으면 null 이고 미리보기에서 고른다. */
+  measured_timing: ParsedMeasuredTiming | null
 }
 
 export type ParsedLogItem = ParsedMeal | ParsedExercise | ParsedWeight
@@ -53,6 +56,13 @@ const MEAL_TYPES: readonly ParsedMealType[] = [
   'late_night',
 ]
 const CONFIDENCES: readonly ParsedConfidence[] = ['high', 'medium', 'low']
+const MEASURED_TIMINGS: readonly ParsedMeasuredTiming[] = [
+  'morning',
+  'afternoon',
+  'evening',
+  'after_workout',
+  'other',
+]
 
 /**
  * 사용자 입력은 <user_log> 태그 안에 데이터로만 넣는다. 시스템 프롬프트가 이 태그 안의
@@ -133,8 +143,12 @@ export const PARSE_LOG_SCHEMA = {
               kind: { type: 'string', enum: ['weight'] },
               day_offset: { type: 'integer' },
               weight_kg: { type: 'number' },
+              measured_timing: {
+                type: ['string', 'null'],
+                enum: [...MEASURED_TIMINGS, null],
+              },
             },
-            required: ['kind', 'day_offset', 'weight_kg'],
+            required: ['kind', 'day_offset', 'weight_kg', 'measured_timing'],
             additionalProperties: false,
           },
         ],
@@ -202,7 +216,14 @@ function parseItem(raw: unknown): ParsedLogItem | null {
   if (r.kind === 'weight') {
     const w = r.weight_kg
     if (typeof w !== 'number' || !Number.isFinite(w) || w < 30 || w > 300) return null
-    return { kind: 'weight', day_offset, weight_kg: Math.round(w * 10) / 10 }
+    return {
+      kind: 'weight',
+      day_offset,
+      weight_kg: Math.round(w * 10) / 10,
+      measured_timing: MEASURED_TIMINGS.includes(r.measured_timing as ParsedMeasuredTiming)
+        ? (r.measured_timing as ParsedMeasuredTiming)
+        : null,
+    }
   }
 
   return null

@@ -58,7 +58,7 @@ const ITEMS: ParsedLogItem[] = [
     note: '',
   },
   { kind: 'exercise', day_offset: 0, exercise_name: '러닝', duration_minutes: 30, calories_burned: 300 },
-  { kind: 'weight', day_offset: -1, weight_kg: 68.2 },
+  { kind: 'weight', day_offset: -1, weight_kg: 68.2, measured_timing: null },
 ]
 
 beforeEach(() => {
@@ -117,6 +117,21 @@ describe('QuickLogCard', () => {
     expect(screen.getByText('11/17')).toBeInTheDocument()
   })
 
+  it('체중을 잰 시점을 골라 저장할 수 있다', async () => {
+    const save = await parse()
+    expect(screen.getByText(/매일 기상 직후에 재는 게 가장 좋아요/)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('radio', { name: '기상 직후' }))
+    expect(screen.queryByText(/매일 기상 직후에 재는 게 가장 좋아요/)).not.toBeInTheDocument()
+    await userEvent.click(save)
+
+    await waitFor(() =>
+      expect(addWeight).toHaveBeenCalledWith(
+        expect.objectContaining({ weight_kg: 68.2, measured_timing: 'morning' })
+      )
+    )
+  })
+
   it('같은 메뉴의 저장된 가게 값을 골라 칼로리를 바꿀 수 있다', async () => {
     await parse()
 
@@ -138,7 +153,11 @@ describe('QuickLogCard', () => {
     expect(addExercise).toHaveBeenCalledWith(
       expect.objectContaining({ exercise_name: '러닝', calories_burned: 300, exercise_date: DATE })
     )
-    expect(addWeight).toHaveBeenCalledWith({ weight_kg: 68.2, weight_date: '2026-11-17' })
+    expect(addWeight).toHaveBeenCalledWith({
+      weight_kg: 68.2,
+      weight_date: '2026-11-17',
+      measured_timing: null,
+    })
     expect(onSaved).toHaveBeenCalled()
     expect(screen.getByLabelText('기록 내용')).toHaveValue('')
   })
