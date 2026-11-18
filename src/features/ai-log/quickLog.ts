@@ -6,20 +6,30 @@ import { useExerciseStore } from '@/stores/exerciseStore'
 import { useWeightStore } from '@/stores/weightStore'
 import { useSummaryStore } from '@/stores/summaryStore'
 import { syncFoodLibrary } from '@/features/meal/foodLibrary'
-import { addDays } from '@/utils/date'
+import { addDays, toISODate } from '@/utils/date'
+import { normalizeFoodName } from '@/utils/foodName'
 import type { ParsedLogItem } from '@/stores/aiStore'
-import type { FoodRow, MealType } from '@/types/database'
+import type { ExerciseLogRow, FoodRow, MealLogRow, MealType } from '@/types/database'
 
 type Confidence = 'high' | 'medium' | 'low'
 
 /** 칼로리를 어디서 가져왔는지. 저장 시 음식 라이브러리를 덮을지 판단한다. */
 export type MealOrigin = 'saved' | 'ai' | 'manual'
 
-export interface MealDraft {
+interface DraftBase {
   id: string
-  kind: 'meal'
   date: string
+  /** 그날 이미 같은 기록이 있다. 하루를 다시 설명하면 앞서 넣은 끼니가 또 나온다. */
+  duplicate: boolean
+  /** true 면 저장하지 않는다. 중복 항목은 제외한 채로 시작한다. */
+  skip: boolean
+}
+
+export interface MealDraft extends DraftBase {
+  kind: 'meal'
   meal_type: MealType | null
+  /** 문장에 끼니 단서가 없어 지금 시각으로 채웠다 */
+  meal_type_guessed: boolean
   food_name: string
   calories: number | null
   protein_g: number | null
@@ -32,19 +42,15 @@ export interface MealDraft {
   candidates: FoodRow[]
 }
 
-export interface ExerciseDraft {
-  id: string
+export interface ExerciseDraft extends DraftBase {
   kind: 'exercise'
-  date: string
   exercise_name: string
   duration_minutes: number | null
   calories_burned: number | null
 }
 
-export interface WeightDraft {
-  id: string
+export interface WeightDraft extends DraftBase {
   kind: 'weight'
-  date: string
   weight_kg: number | null
 }
 
@@ -55,8 +61,33 @@ export interface FoodLibrary {
   findVariants: (name: string) => Promise<FoodRow[]>
 }
 
+/** 중복 판단에 쓰는 그날의 기존 기록 */
+export interface DayLogs {
+  meals: Pick<MealLogRow, 'food_name' | 'meal_type'>[]
+  exercises: Pick<ExerciseLogRow, 'exercise_name'>[]
+}
+
+export interface BuildOptions {
+  /** 날짜별 기존 기록. 없으면 중복 검사를 하지 않는다. */
+  existing?: (date: string) => Promise<DayLogs>
+  /** 끼니를 시각으로 채울 때 기준 시각(테스트용) */
+  now?: Date
+}
+
 let seq = 0
 const nextId = () => `draft-${++seq}`
+
+/**
+ * 끼니 단서가 없는 오늘 기록("방금 김치찌개 먹음")은 지금 시각으로 끼니를 채운다.
+ * 끼니마다 따로 입력하는 사람은 시간대를 말하지 않는 경우가 많다.
+ */
+export function mealTypeByHour(hour: number): MealType {
+  if (hour >= 4 && hour < 10) return 'breakfast'
+  if (hour >= 10 && hour < 15) return 'lunch'
+  if (hour >= 15 && hour < 17) return 'snack'
+  if (hour >= 17 && hour < 21) return 'dinner'
+  return 'late_night'
+}
 
 /**
  * AI 가 나눈 항목을 미리보기용 초안으로 바꾼다.
@@ -64,21 +95,46 @@ const nextId = () => `draft-${++seq}`
  * 식사 칼로리는 사용자 음식 라이브러리를 AI 추정보다 우선한다. 사용자가 고쳐 둔 값이
  * 자연어 입력에서도 똑같이 나와야 하기 때문이다. 이름이 정확히 같지 않은 변형
  * ("김치찌개" ↔ "회사 앞 김치찌개")은 자동으로 고르지 않고 후보로만 보여준다.
+ *
+ * 그날 이미 같은 이름(식사는 끼니까지)으로 기록돼 있으면 중복으로 표시하고 제외해 둔다.
+ * 따로따로 입력하다가 하루를 몰아서 다시 설명해도 같은 끼니가 두 번 저장되지 않게 한다.
  */
 export async function buildDrafts(
   items: ParsedLogItem[],
   baseDate: string,
-  library: FoodLibrary
+  library: FoodLibrary,
+  options: BuildOptions = {}
 ): Promise<LogDraft[]> {
+  const now = options.now ?? new Date()
+  const today = toISODate(now)
+
+  const dayCache = new Map<string, Promise<DayLogs>>()
+  const dayLogs = (date: string): Promise<DayLogs> => {
+    if (!options.existing) return Promise.resolve({ meals: [], exercises: [] })
+    let p = dayCache.get(date)
+    if (!p) {
+      p = options.existing(date).catch(() => ({ meals: [], exercises: [] }))
+      dayCache.set(date, p)
+    }
+    return p
+  }
+
   return Promise.all(
     items.map(async (item): Promise<LogDraft> => {
       const date = addDays(baseDate, item.day_offset)
+      const logs = await dayLogs(date)
 
       if (item.kind === 'exercise') {
+        const name = normalizeFoodName(item.exercise_name)
+        const duplicate = logs.exercises.some(
+          (e) => normalizeFoodName(e.exercise_name) === name
+        )
         return {
           id: nextId(),
           kind: 'exercise',
           date,
+          duplicate,
+          skip: duplicate,
           exercise_name: item.exercise_name,
           duration_minutes: item.duration_minutes,
           calories_burned: item.calories_burned,
@@ -86,7 +142,14 @@ export async function buildDrafts(
       }
 
       if (item.kind === 'weight') {
-        return { id: nextId(), kind: 'weight', date, weight_kg: item.weight_kg }
+        return {
+          id: nextId(),
+          kind: 'weight',
+          date,
+          duplicate: false,
+          skip: false,
+          weight_kg: item.weight_kg,
+        }
       }
 
       const [saved, candidates] = await Promise.all([
@@ -94,11 +157,23 @@ export async function buildDrafts(
         library.findVariants(item.food_name).catch(() => [] as FoodRow[]),
       ])
 
+      const guessed = item.meal_type === null && date === today
+      const mealType = guessed ? mealTypeByHour(now.getHours()) : item.meal_type
+      const name = normalizeFoodName(item.food_name)
+      const duplicate = logs.meals.some(
+        (m) =>
+          normalizeFoodName(m.food_name) === name &&
+          (mealType === null || m.meal_type === mealType)
+      )
+
       const base: MealDraft = {
         id: nextId(),
         kind: 'meal',
         date,
-        meal_type: item.meal_type,
+        duplicate,
+        skip: duplicate,
+        meal_type: mealType,
+        meal_type_guessed: guessed,
         food_name: item.food_name,
         calories: item.calories,
         protein_g: item.protein_g,
@@ -132,6 +207,7 @@ export function applyCandidate(draft: MealDraft, food: FoodRow): MealDraft {
 /** 사용자가 칼로리를 바꾸면 그 값이 권위 있는 값이 된다(라이브러리를 덮어쓴다). */
 export function patchMeal(draft: MealDraft, patch: Partial<MealDraft>): MealDraft {
   const next = { ...draft, ...patch }
+  if ('meal_type' in patch) next.meal_type_guessed = false
   if ('calories' in patch && patch.calories !== draft.calories) {
     next.origin = 'manual'
     next.confidence = null
@@ -181,7 +257,7 @@ export interface SaveResult {
 }
 
 /**
- * 초안을 하나씩 저장한다. 한 항목이 실패해도 나머지는 계속 저장하고,
+ * 초안을 하나씩 저장한다. 제외(skip)한 항목은 건너뛴다. 한 항목이 실패해도 나머지는 계속 저장하고,
  * 실패한 항목만 돌려준다. 식사·운동이 바뀐 날짜는 일일 요약을 다시 계산한다.
  */
 export async function saveDrafts(drafts: LogDraft[]): Promise<SaveResult> {
@@ -190,6 +266,7 @@ export async function saveDrafts(drafts: LogDraft[]): Promise<SaveResult> {
   const summaryDates = new Set<string>()
 
   for (const draft of drafts) {
+    if (draft.skip) continue
     const ok = await saveOne(draft)
     if (!ok) {
       failed.push(draft)

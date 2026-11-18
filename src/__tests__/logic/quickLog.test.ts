@@ -3,6 +3,7 @@ jest.mock('@/lib/supabase', () => ({ supabase: {} }))
 import {
   applyCandidate,
   buildDrafts,
+  mealTypeByHour,
   patchMeal,
   saveDrafts,
   validateDraft,
@@ -93,6 +94,69 @@ describe('buildDrafts', () => {
   })
 })
 
+describe('따로 입력하는 경우', () => {
+  const library = { lookup: async () => null, findVariants: async () => [] }
+  const noon = new Date(2026, 10, 18, 12, 30)
+
+  it('오늘 기록에 끼니 단서가 없으면 지금 시각으로 끼니를 채운다', async () => {
+    const [d] = await buildDrafts([mealItem({ meal_type: null })], DATE, library, { now: noon })
+    expect(d).toMatchObject({ meal_type: 'lunch', meal_type_guessed: true })
+  })
+
+  it('지난 날짜는 시각으로 추측하지 않는다', async () => {
+    const [d] = await buildDrafts([mealItem({ meal_type: null, day_offset: -1 })], DATE, library, {
+      now: noon,
+    })
+    expect(d).toMatchObject({ meal_type: null, meal_type_guessed: false })
+  })
+
+  it('시간대 경계', () => {
+    expect([3, 4, 9, 10, 14, 15, 16, 17, 20, 21].map(mealTypeByHour)).toEqual([
+      'late_night',
+      'breakfast',
+      'breakfast',
+      'lunch',
+      'lunch',
+      'snack',
+      'snack',
+      'dinner',
+      'dinner',
+      'late_night',
+    ])
+  })
+
+  it('그날 같은 끼니·같은 음식이 이미 있으면 중복으로 표시하고 빼 둔다', async () => {
+    const existing = jest.fn().mockResolvedValue({
+      meals: [{ food_name: ' 김치찌개', meal_type: 'lunch' }],
+      exercises: [{ exercise_name: '러닝' }],
+    })
+    const drafts = await buildDrafts(
+      [
+        mealItem(),
+        mealItem({ meal_type: 'dinner' }),
+        { kind: 'exercise', day_offset: 0, exercise_name: '러닝', duration_minutes: 30, calories_burned: 300 },
+      ],
+      DATE,
+      library,
+      { existing, now: noon }
+    )
+    expect(drafts.map((d) => [d.duplicate, d.skip])).toEqual([
+      [true, true],
+      [false, false],
+      [true, true],
+    ])
+    // 같은 날짜는 한 번만 조회한다
+    expect(existing).toHaveBeenCalledTimes(1)
+  })
+
+  it('기존 기록 조회가 실패해도 초안은 만든다', async () => {
+    const [d] = await buildDrafts([mealItem()], DATE, library, {
+      existing: () => Promise.reject(new Error('down')),
+    })
+    expect(d).toMatchObject({ duplicate: false, skip: false })
+  })
+})
+
 describe('applyCandidate / patchMeal', () => {
   const base: MealDraft = {
     id: 'd1',
@@ -108,6 +172,9 @@ describe('applyCandidate / patchMeal', () => {
     confidence: 'medium',
     note: 'AI 노트',
     candidates: [],
+    meal_type_guessed: false,
+    duplicate: false,
+    skip: false,
   }
 
   it('후보를 고르면 이름과 칼로리를 그 가게 값으로 바꾼다', () => {
@@ -166,7 +233,16 @@ describe('saveDrafts', () => {
     confidence: 'medium',
     note: '',
     candidates: [],
+    meal_type_guessed: false,
+    duplicate: false,
+    skip: false,
     ...overrides,
+  })
+
+  it('빼 둔 항목은 저장하지 않는다', async () => {
+    const result = await saveDrafts([meal({ skip: true })])
+    expect(addMeal).not.toHaveBeenCalled()
+    expect(result).toEqual({ failed: [], dates: [] })
   })
 
   it('직접 고친 칼로리는 라이브러리 값을 덮어쓴다', async () => {
@@ -190,8 +266,17 @@ describe('saveDrafts', () => {
       exercise_name: '러닝',
       duration_minutes: 30,
       calories_burned: 300,
+      duplicate: false,
+      skip: false,
     }
-    const weight = { id: 'w1', kind: 'weight' as const, date: '2026-11-17', weight_kg: 68 }
+    const weight = {
+      id: 'w1',
+      kind: 'weight' as const,
+      date: '2026-11-17',
+      weight_kg: 68,
+      duplicate: false,
+      skip: false,
+    }
 
     const result = await saveDrafts([meal(), exercise, weight])
 

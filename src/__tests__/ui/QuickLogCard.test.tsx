@@ -25,6 +25,8 @@ const addExercise = jest.fn()
 const addWeight = jest.fn()
 const calculateAndSave = jest.fn()
 const onSaved = jest.fn()
+const peekMeals = jest.fn()
+const peekExercises = jest.fn()
 
 const variant: FoodRow = {
   id: 'v1',
@@ -61,24 +63,37 @@ const ITEMS: ParsedLogItem[] = [
 ]
 
 beforeEach(() => {
-  for (const m of [parseLog, lookup, findVariants, addMeal, addExercise, addWeight, calculateAndSave, onSaved]) {
+  for (const m of [
+    parseLog,
+    lookup,
+    findVariants,
+    addMeal,
+    addExercise,
+    addWeight,
+    calculateAndSave,
+    onSaved,
+    peekMeals,
+    peekExercises,
+  ]) {
     m.mockReset()
   }
+  peekMeals.mockResolvedValue([])
+  peekExercises.mockResolvedValue([])
   parseLog.mockResolvedValue(ITEMS)
   lookup.mockResolvedValue(null)
   findVariants.mockImplementation(async (name: string) => (name === '김치찌개' ? [variant] : []))
   ;(toast.success as jest.Mock).mockReset()
   ;(toast.error as jest.Mock).mockReset()
 
-  useAiStore.setState({ isParsing: false, error: null, parseLog })
+  useAiStore.setState({ isParsing: false, error: null, parseQuota: null, parseLog })
   useFoodStore.setState({
     lookup,
     findVariants,
     upsertFromEstimate: jest.fn().mockResolvedValue(undefined),
     recordUsage: jest.fn().mockResolvedValue(undefined),
   })
-  useMealStore.setState({ error: null, addLog: addMeal })
-  useExerciseStore.setState({ error: null, addLog: addExercise })
+  useMealStore.setState({ error: null, addLog: addMeal, peekLogs: peekMeals })
+  useExerciseStore.setState({ error: null, addLog: addExercise, peekLogs: peekExercises })
   useWeightStore.setState({ error: null, addLog: addWeight })
   useSummaryStore.setState({ calculateAndSave })
   useProfileStore.setState({ profile: { current_weight_kg: 70 } as never })
@@ -86,7 +101,7 @@ beforeEach(() => {
 
 async function parse(text = '점심 김치찌개, 30분 러닝, 어제 체중 68.2') {
   render(<QuickLogCard date={DATE} onSaved={onSaved} />)
-  await userEvent.type(screen.getByLabelText('오늘 기록'), text)
+  await userEvent.type(screen.getByLabelText('기록 내용'), text)
   await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
   return screen.findByRole('button', { name: '3건 저장' })
 }
@@ -127,7 +142,7 @@ describe('QuickLogCard', () => {
     )
     expect(addWeight).toHaveBeenCalledWith({ weight_kg: 68.2, weight_date: '2026-11-17' })
     expect(onSaved).toHaveBeenCalled()
-    expect(screen.getByLabelText('오늘 기록')).toHaveValue('')
+    expect(screen.getByLabelText('기록 내용')).toHaveValue('')
   })
 
   it('필수 값이 빠진 항목이 있으면 아무것도 저장하지 않고 그 항목에 이유를 보여준다', async () => {
@@ -164,18 +179,70 @@ describe('QuickLogCard', () => {
     expect(weight).toHaveValue('67.5')
   })
 
+  it('다시 입력 후 문장을 안 고치고 정리하면 AI 를 다시 부르지 않는다', async () => {
+    await parse()
+    await userEvent.click(screen.getByRole('button', { name: '다시 입력' }))
+    expect(screen.getByLabelText('기록 내용')).toHaveValue('점심 김치찌개, 30분 러닝, 어제 체중 68.2')
+
+    await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
+
+    expect(await screen.findByRole('button', { name: '3건 저장' })).toBeInTheDocument()
+    expect(parseLog).toHaveBeenCalledTimes(1)
+  })
+
+  it('문장을 고치면 다시 정리한다', async () => {
+    await parse()
+    await userEvent.click(screen.getByRole('button', { name: '다시 입력' }))
+    await userEvent.type(screen.getByLabelText('기록 내용'), ' 저녁 샐러드')
+    await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
+
+    await waitFor(() => expect(parseLog).toHaveBeenCalledTimes(2))
+  })
+
+  it('이미 기록된 끼니는 빼 둔 채로 보여주고, 원하면 다시 넣을 수 있다', async () => {
+    peekMeals.mockResolvedValue([{ food_name: '김치찌개', meal_type: 'lunch' }])
+    render(<QuickLogCard date={DATE} onSaved={onSaved} />)
+    await userEvent.type(screen.getByLabelText('기록 내용'), '점심 김치찌개, 30분 러닝, 어제 체중 68.2')
+    await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
+
+    expect(await screen.findByText('이미 기록된 항목이라 빼 두었어요.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('음식 이름')).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '2건 저장' }))
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('2건을 기록했습니다'))
+    expect(addMeal).not.toHaveBeenCalled()
+  })
+
+  it('빼 둔 중복 항목을 그래도 추가할 수 있다', async () => {
+    peekMeals.mockResolvedValue([{ food_name: '김치찌개', meal_type: 'lunch' }])
+    render(<QuickLogCard date={DATE} />)
+    await userEvent.type(screen.getByLabelText('기록 내용'), '점심 김치찌개')
+    await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
+
+    await userEvent.click(await screen.findByRole('button', { name: '그래도 추가' }))
+
+    expect(screen.getByLabelText('음식 이름')).toHaveValue('김치찌개')
+    expect(screen.getByRole('button', { name: '3건 저장' })).toBeInTheDocument()
+  })
+
+  it('오늘 남은 정리 횟수를 보여준다', async () => {
+    useAiStore.setState({ parseQuota: { remaining: 17, limit: 20 } })
+    render(<QuickLogCard date={DATE} />)
+    expect(screen.getByText('오늘 남은 정리 횟수 17/20회')).toBeInTheDocument()
+  })
+
   it('정리에 실패하면 안내를 띄우고 입력을 그대로 둔다', async () => {
     parseLog.mockImplementation(async () => {
       useAiStore.setState({ error: '요청이 몰리고 있습니다. 잠시 후 다시 시도해 주세요.' })
       return null
     })
     render(<QuickLogCard date={DATE} />)
-    await userEvent.type(screen.getByLabelText('오늘 기록'), '점심 김밥')
+    await userEvent.type(screen.getByLabelText('기록 내용'), '점심 김밥')
     await userEvent.click(screen.getByRole('button', { name: '항목으로 정리하기' }))
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith('요청이 몰리고 있습니다. 잠시 후 다시 시도해 주세요.')
     )
-    expect(screen.getByLabelText('오늘 기록')).toHaveValue('점심 김밥')
+    expect(screen.getByLabelText('기록 내용')).toHaveValue('점심 김밥')
   })
 })

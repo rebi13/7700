@@ -1,8 +1,10 @@
-import { useState, type ComponentProps } from 'react'
+import { useRef, useState, type ComponentProps } from 'react'
 import { Sparkles, X } from 'lucide-react'
-import { useAiStore } from '@/stores/aiStore'
+import { useAiStore, type ParsedLogItem } from '@/stores/aiStore'
 import { useFoodStore } from '@/stores/foodStore'
 import { useProfileStore } from '@/stores/profileStore'
+import { useMealStore } from '@/stores/mealStore'
+import { useExerciseStore } from '@/stores/exerciseStore'
 import { MEAL_TYPES } from '@/features/meal/options'
 import {
   applyCandidate,
@@ -10,6 +12,7 @@ import {
   patchMeal,
   saveDrafts,
   validateDraft,
+  type DayLogs,
   type ExerciseDraft,
   type LogDraft,
   type MealDraft,
@@ -26,12 +29,24 @@ import { cn } from '@/lib/utils'
 import { formatDateShort } from '@/utils/date'
 
 const PLACEHOLDER =
-  '예) 아침엔 토스트랑 라떼, 점심은 회사 앞 김치찌개, 저녁 치킨 반 마리. 30분 러닝했고 아침 체중 68.2'
+  '예) 점심 회사 앞 김치찌개 / 아침엔 토스트랑 라떼, 저녁 치킨 반 마리. 30분 러닝했고 체중 68.2'
 
 const KIND_LABEL: Record<LogDraft['kind'], string> = {
   meal: '식사',
   exercise: '운동',
   weight: '체중',
+}
+
+/** 공백만 다른 같은 문장은 같은 입력으로 본다 */
+const sameText = (a: string, b: string) =>
+  a.trim().replace(/\s+/g, ' ') === b.trim().replace(/\s+/g, ' ')
+
+async function existingLogs(date: string): Promise<DayLogs> {
+  const [meals, exercises] = await Promise.all([
+    useMealStore.getState().peekLogs(date),
+    useExerciseStore.getState().peekLogs(date),
+  ])
+  return { meals, exercises }
 }
 
 interface Props {
@@ -41,30 +56,45 @@ interface Props {
   onSaved?: (dates: string[]) => void
 }
 
-/** 하루 기록을 자연어로 받아 항목별로 나눠 보여주고, 확인 후 한 번에 저장한다. */
+/**
+ * 기록을 자연어로 받아 항목별로 나눠 보여주고, 확인 후 한 번에 저장한다.
+ * 하루를 몰아 쓰든 끼니마다 따로 쓰든 같은 입력창을 쓴다.
+ */
 export function QuickLogCard({ date, onSaved }: Props) {
   const parseLog = useAiStore((st) => st.parseLog)
   const isParsing = useAiStore((st) => st.isParsing)
+  const parseQuota = useAiStore((st) => st.parseQuota)
   const weightKg = useProfileStore((st) => st.profile?.current_weight_kg ?? null)
 
   const [text, setText] = useState('')
   const [drafts, setDrafts] = useState<LogDraft[] | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [isSaving, setIsSaving] = useState(false)
+  // 마지막으로 정리한 문장과 결과. "다시 입력" 후 문장을 안 고치고 다시 정리하면
+  // AI 를 또 부르지 않고 이 결과를 쓴다(하루 한도와 토큰을 아낀다).
+  const lastParse = useRef<{ text: string; items: ParsedLogItem[] } | null>(null)
 
   const handleParse = async () => {
     blurActiveElement()
-    const items = await parseLog(text, weightKg)
-    if (!items) {
-      toast.error(useAiStore.getState().error ?? '기록을 정리하지 못했습니다')
-      return
+    let items: ParsedLogItem[] | null
+    if (lastParse.current && sameText(lastParse.current.text, text)) {
+      items = lastParse.current.items
+    } else {
+      items = await parseLog(text, weightKg)
+      if (!items) {
+        toast.error(useAiStore.getState().error ?? '기록을 정리하지 못했습니다')
+        return
+      }
+      lastParse.current = { text, items }
     }
     if (items.length === 0) {
       toast.error('기록할 식사·운동·체중을 찾지 못했습니다')
       return
     }
     const { lookup, findVariants } = useFoodStore.getState()
-    setDrafts(await buildDrafts(items, date, { lookup, findVariants }))
+    setDrafts(
+      await buildDrafts(items, date, { lookup, findVariants }, { existing: existingLogs })
+    )
     setErrors({})
   }
 
@@ -85,10 +115,12 @@ export function QuickLogCard({ date, onSaved }: Props) {
     })
   }
 
+  const toSave = drafts?.filter((d) => !d.skip) ?? []
+
   const handleSave = async () => {
-    if (!drafts) return
+    if (!drafts || toSave.length === 0) return
     const found: Record<string, string> = {}
-    for (const d of drafts) {
+    for (const d of toSave) {
       const msg = validateDraft(d)
       if (msg) found[d.id] = msg
     }
@@ -96,10 +128,10 @@ export function QuickLogCard({ date, onSaved }: Props) {
     if (Object.keys(found).length > 0) return
 
     setIsSaving(true)
-    const { failed, dates } = await saveDrafts(drafts)
+    const { failed, dates } = await saveDrafts(toSave)
     setIsSaving(false)
 
-    const savedCount = drafts.length - failed.length
+    const savedCount = toSave.length - failed.length
     if (dates.length > 0) onSaved?.(dates)
     if (failed.length > 0) {
       setDrafts(failed)
@@ -116,14 +148,14 @@ export function QuickLogCard({ date, onSaved }: Props) {
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5 text-base">
           <Sparkles className="size-4 text-deficit" />
-          한 번에 기록하기
+          말로 기록하기
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {drafts === null ? (
           <>
             <Textarea
-              aria-label="오늘 기록"
+              aria-label="기록 내용"
               placeholder={PLACEHOLDER}
               value={text}
               maxLength={1000}
@@ -133,6 +165,11 @@ export function QuickLogCard({ date, onSaved }: Props) {
             <Button onClick={handleParse} disabled={!text.trim() || isParsing}>
               {isParsing ? '정리하는 중...' : '항목으로 정리하기'}
             </Button>
+            {parseQuota && (
+              <p className="text-xs text-muted-foreground">
+                오늘 남은 정리 횟수 {parseQuota.remaining}/{parseQuota.limit}회
+              </p>
+            )}
           </>
         ) : (
           <>
@@ -145,7 +182,8 @@ export function QuickLogCard({ date, onSaved }: Props) {
                   key={d.id}
                   className={cn(
                     'rounded-md border p-3',
-                    errors[d.id] && 'border-destructive'
+                    errors[d.id] && 'border-destructive',
+                    d.skip && 'bg-muted/50'
                   )}
                 >
                   <div className="mb-2 flex items-center justify-between">
@@ -166,13 +204,29 @@ export function QuickLogCard({ date, onSaved }: Props) {
                       <X />
                     </Button>
                   </div>
-                  {d.kind === 'meal' && (
+                  {d.duplicate && (
+                    <div className="mb-2 flex items-center justify-between gap-2 text-xs">
+                      <span className="text-muted-foreground">
+                        {d.skip
+                          ? '이미 기록된 항목이라 빼 두었어요.'
+                          : '이미 같은 기록이 있어요.'}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        onClick={() => update(d.id, (x) => ({ ...x, skip: !x.skip }))}
+                      >
+                        {d.skip ? '그래도 추가' : '빼기'}
+                      </Button>
+                    </div>
+                  )}
+                  {!d.skip && d.kind === 'meal' && (
                     <MealDraftFields
                       draft={d}
                       onChange={(fn) => update(d.id, (x) => fn(x as MealDraft))}
                     />
                   )}
-                  {d.kind === 'exercise' && (
+                  {!d.skip && d.kind === 'exercise' && (
                     <ExerciseDraftFields
                       draft={d}
                       onChange={(patch) =>
@@ -180,13 +234,19 @@ export function QuickLogCard({ date, onSaved }: Props) {
                       }
                     />
                   )}
-                  {d.kind === 'weight' && (
+                  {!d.skip && d.kind === 'weight' && (
                     <WeightDraftFields
                       draft={d}
                       onChange={(patch) =>
                         update(d.id, (x) => ({ ...(x as WeightDraft), ...patch }))
                       }
                     />
+                  )}
+                  {d.skip && (
+                    <p className="text-sm text-muted-foreground">
+                      {d.kind === 'meal' && d.food_name}
+                      {d.kind === 'exercise' && d.exercise_name}
+                    </p>
                   )}
                   {errors[d.id] && (
                     <p role="alert" className="mt-2 text-sm text-destructive">
@@ -205,8 +265,12 @@ export function QuickLogCard({ date, onSaved }: Props) {
               >
                 다시 입력
               </Button>
-              <Button className="flex-1" onClick={handleSave} disabled={isSaving}>
-                {isSaving ? '저장 중...' : `${drafts.length}건 저장`}
+              <Button
+                className="flex-1"
+                onClick={handleSave}
+                disabled={isSaving || toSave.length === 0}
+              >
+                {isSaving ? '저장 중...' : `${toSave.length}건 저장`}
               </Button>
             </div>
           </>
@@ -298,6 +362,11 @@ function MealDraftFields({
         {ORIGIN_LABEL[draft.origin]}
         {draft.note && ` · ${draft.note}`}
       </p>
+      {draft.meal_type_guessed && (
+        <p className="text-xs text-muted-foreground">
+          끼니는 지금 시각으로 골랐어요. 다르면 바꿔 주세요.
+        </p>
+      )}
       {draft.candidates.length > 0 && (
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">저장된 비슷한 메뉴</span>
