@@ -9,6 +9,8 @@ interface MealState {
   isLoading: boolean
   error: string | null
   fetchLogs: (date: string) => Promise<void>
+  /** 화면 목록(logs)을 건드리지 않고 그날 기록만 읽는다. 실패하면 빈 배열 */
+  peekLogs: (date: string) => Promise<MealLogRow[]>
   addLog: (data: MealFormData) => Promise<void>
   updateLog: (id: string, data: MealLogUpdate) => Promise<void>
   deleteLog: (id: string) => Promise<void>
@@ -35,6 +37,18 @@ export const useMealStore = create<MealState>((set, get) => ({
       return
     }
     set({ logs: data ?? [], isLoading: false })
+  },
+
+  peekLogs: async (date) => {
+    const userId = useAuthStore.getState().user?.id
+    if (!userId) return []
+    const { data, error } = await supabase
+      .from('meal_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('meal_date', date)
+    if (error) return []
+    return data ?? []
   },
 
   addLog: async (formData) => {

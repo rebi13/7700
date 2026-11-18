@@ -9,7 +9,7 @@ jest.mock('@/lib/supabase', () => ({
 }))
 
 beforeEach(() => {
-  useAiStore.setState({ isEstimating: false, error: null })
+  useAiStore.setState({ isEstimating: false, isParsing: false, parseQuota: null, error: null })
   mockInvoke.mockReset()
 })
 
@@ -57,5 +57,50 @@ describe('estimateCalories', () => {
     resolveInvoke({ data: null, error: { message: 'err' } })
     await promise
     expect(useAiStore.getState().isEstimating).toBe(false)
+  })
+})
+
+describe('parseLog', () => {
+  it('문장을 parse-log 로 보내고 항목을 돌려준다', async () => {
+    const items = [{ kind: 'weight', day_offset: 0, weight_kg: 68 }]
+    mockInvoke.mockResolvedValue({ data: { items }, error: null })
+
+    const result = await useAiStore.getState().parseLog('체중 68')
+
+    expect(mockInvoke).toHaveBeenCalledWith('parse-log', {
+      body: { text: '체중 68' },
+    })
+    expect(result).toEqual(items)
+    expect(useAiStore.getState().isParsing).toBe(false)
+  })
+
+  it('응답에 남은 횟수가 있으면 기억해 둔다', async () => {
+    mockInvoke.mockResolvedValue({ data: { items: [], remaining: 17, limit: 20 }, error: null })
+    await useAiStore.getState().parseLog('점심 김밥')
+    expect(useAiStore.getState().parseQuota).toEqual({ remaining: 17, limit: 20 })
+  })
+
+  it('하루 한도에 닿으면 직접 입력을 안내한다', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'Daily AI limit reached' } })
+    expect(await useAiStore.getState().parseLog('점심 김밥')).toBeNull()
+    expect(useAiStore.getState().error).toBe(
+      '오늘 AI 사용 한도를 모두 썼습니다. 내일 다시 시도하거나 직접 입력해 주세요.'
+    )
+  })
+
+  it('실패하면 error 를 남기고 null 을 돌려준다', async () => {
+    mockInvoke.mockResolvedValue({ data: null, error: { message: 'Input too long' } })
+
+    const result = await useAiStore.getState().parseLog('...')
+
+    expect(result).toBeNull()
+    expect(useAiStore.getState().isParsing).toBe(false)
+    expect(useAiStore.getState().error).toBe('입력이 너무 깁니다. 줄여서 다시 시도해 주세요.')
+  })
+
+  it('응답에 items 배열이 없으면 실패로 본다', async () => {
+    mockInvoke.mockResolvedValue({ data: { foo: 1 }, error: null })
+    expect(await useAiStore.getState().parseLog('점심 김밥')).toBeNull()
+    expect(useAiStore.getState().error).toBe('기록을 정리하지 못했습니다')
   })
 })

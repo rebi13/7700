@@ -18,6 +18,10 @@ const FUNCTION_MESSAGES: Record<string, string> = {
   'Empty response from OpenAI':
     'AI 응답이 비어 있습니다. 잠시 후 다시 시도해 주세요.',
   Unauthorized: '로그인이 만료되었습니다. 다시 로그인해 주세요.',
+  'Input too long': '입력이 너무 깁니다. 줄여서 다시 시도해 주세요.',
+  'Daily AI limit reached':
+    '오늘 AI 사용 한도를 모두 썼습니다. 내일 다시 시도하거나 직접 입력해 주세요.',
+  'Quota check failed': 'AI 사용량을 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.',
 }
 
 const NETWORK_MESSAGE = '네트워크 연결을 확인한 뒤 다시 시도해 주세요.'

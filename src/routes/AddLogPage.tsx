@@ -13,6 +13,7 @@ import { ExerciseEditSheet } from '@/features/exercise/ExerciseEditSheet'
 import { WeightForm } from '@/features/weight/WeightForm'
 import { WeightList } from '@/features/weight/WeightList'
 import { WeightEditSheet } from '@/features/weight/WeightEditSheet'
+import { QuickLogCard } from '@/features/ai-log/QuickLogCard'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -61,6 +62,14 @@ export function AddLogPage() {
     fetchWeightLogs,
   ])
 
+  // 한 번에 기록하기는 여러 탭·날짜에 걸쳐 저장하고, 스토어 목록은 마지막으로 저장한
+  // 날짜를 들고 있게 된다. 보고 있는 날짜 기준으로 세 목록을 다시 맞춘다.
+  const handleQuickSaved = useCallback(() => {
+    fetchMealLogs(selectedDate)
+    fetchExerciseLogs(selectedDate)
+    fetchWeightLogs(selectedDate)
+  }, [selectedDate, fetchMealLogs, fetchExerciseLogs, fetchWeightLogs])
+
   const handleDelete = useCallback(
     async (id: string, type: TabType) => {
       const ok = await confirmAction({
@@ -104,6 +113,8 @@ export function AddLogPage() {
           className="w-auto"
         />
       </div>
+
+      <QuickLogCard date={selectedDate} onSaved={handleQuickSaved} />
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabType)}>
         <TabsList className="w-full">

@@ -47,7 +47,8 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "eval:parse-log": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/eval-parse-log.ts"
   },
   "private": true
 }
