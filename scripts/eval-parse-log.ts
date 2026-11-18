@@ -45,6 +45,8 @@ function parseArgs(argv: string[]): Args {
   return args
 }
 
+class AuthError extends Error {}
+
 interface RunResult {
   ok: boolean
   failures: string[]
@@ -67,6 +69,10 @@ async function runOnce(c: EvalCase, args: Args, apiKey: string): Promise<RunResu
     ),
   })
   const ms = Date.now() - started
+  // 키·권한 문제는 모든 케이스에서 똑같이 실패하므로 바로 멈춘다.
+  if (res.status === 401 || res.status === 403) {
+    throw new AuthError(`OpenAI 인증 실패(HTTP ${res.status}). OPENAI_API_KEY 값을 확인해 주세요.`)
+  }
   if (!res.ok) {
     return { ok: false, failures: [`HTTP ${res.status}: ${await res.text()}`], ms, promptTokens: 0, completionTokens: 0 }
   }
@@ -151,6 +157,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e)
+  console.error(e instanceof AuthError ? e.message : e)
   process.exit(2)
 })
