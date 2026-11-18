@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/authStore'
 import { todayISO, addDays } from '@/utils/date'
 import type { WeightLogRow, WeightLogUpdate } from '@/types/database'
 import type { WeightFormData } from '@/schemas/weight'
+import { pickDailyWeights } from '@/features/weight/dailyWeight'
 
 interface WeightState {
   logs: WeightLogRow[]
@@ -56,10 +57,10 @@ export const useWeightStore = create<WeightState>((set, get) => ({
       set({ error: error.message, isLoading: false })
       return
     }
+    // 하루에 여러 번 잰 날이 평균을 끌고 가지 않도록 날짜마다 한 값만 쓴다.
+    const daily = pickDailyWeights(data ?? [])
     const sevenDayAvg =
-      data && data.length > 0
-        ? data.reduce((sum, l) => sum + l.weight_kg, 0) / data.length
-        : null
+      daily.length > 0 ? daily.reduce((sum, l) => sum + l.weight_kg, 0) / daily.length : null
     set({ logs: data ?? [], sevenDayAvg, isLoading: false })
   },
 

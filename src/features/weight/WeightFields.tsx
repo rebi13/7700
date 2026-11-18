@@ -1,9 +1,11 @@
 import type { UseFormReturn } from 'react-hook-form'
 import type { WeightFormData } from '@/schemas/weight'
 import { MEASURED_TIMINGS } from '@/features/weight/options'
+import { DAILY_WEIGHT_RULE } from '@/features/weight/dailyWeight'
 import { ChipGroup } from '@/components/ChipGroup'
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -50,6 +52,7 @@ export function WeightFields({ form }: { form: UseFormReturn<WeightFormData> }) 
                 deselectable
               />
             </FormControl>
+            <FormDescription>{DAILY_WEIGHT_RULE}</FormDescription>
             <FormMessage />
           </FormItem>
         )}

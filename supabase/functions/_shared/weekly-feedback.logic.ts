@@ -1,4 +1,5 @@
 import { isRecordedDay } from './daily-summary.logic.ts'
+import { pickDailyWeights, type WeightMeasurement } from './daily-weight.logic.ts'
 
 export interface DailySummaryEntry {
   summary_date: string
@@ -7,10 +8,7 @@ export interface DailySummaryEntry {
   calorie_delta: number
 }
 
-export interface WeightEntry {
-  weight_date: string
-  weight_kg: number
-}
+export type WeightEntry = WeightMeasurement
 
 export interface GoalEntry {
   target_weight_kg: number
@@ -44,9 +42,10 @@ export function computeWeeklyStats(
   const deficitDays = summaries.filter(s => s.calorie_delta > 0).length
 
   let weightChange: number | null = null
-  if (weights.length >= 2) {
-    const sorted = [...weights].sort((a, b) => a.weight_date.localeCompare(b.weight_date))
-    weightChange = Math.round((sorted[sorted.length - 1].weight_kg - sorted[0].weight_kg) * 100) / 100
+  // 같은 날 식후·운동 후 값이 섞이면 변화량이 흔들리므로 날짜마다 대표값 하나로 비교한다.
+  const daily = pickDailyWeights(weights)
+  if (daily.length >= 2) {
+    weightChange = Math.round((daily[daily.length - 1].weight_kg - daily[0].weight_kg) * 100) / 100
   }
 
   return { activeDays, exerciseDays, avgIntake, avgDelta, deficitDays, weightChange }

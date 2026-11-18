@@ -63,6 +63,23 @@ describe('computeWeeklyStats', () => {
     expect(stats.weightChange).toBe(-0.5)
   })
 
+  it('같은 날 여러 번 잰 체중은 기상 직후 값으로 변화를 계산한다', () => {
+    const weights = [
+      { weight_date: '2026-06-29', weight_kg: 70.0, measured_timing: 'morning' },
+      { weight_date: '2026-07-01', weight_kg: 71.2, measured_timing: 'after_workout', created_at: '2026-07-01T09:00:00Z' },
+      { weight_date: '2026-07-01', weight_kg: 69.5, measured_timing: 'morning', created_at: '2026-07-01T22:00:00Z' },
+    ]
+    expect(computeWeeklyStats(summaries, weights).weightChange).toBe(-0.5)
+  })
+
+  it('같은 날 두 기록만 있으면 날짜가 하나라 weightChange가 null이다', () => {
+    const weights = [
+      { weight_date: '2026-06-29', weight_kg: 70.0 },
+      { weight_date: '2026-06-29', weight_kg: 71.0 },
+    ]
+    expect(computeWeeklyStats(summaries, weights).weightChange).toBeNull()
+  })
+
   it('체중 기록이 1개 이하면 weightChange가 null이다', () => {
     const stats = computeWeeklyStats(summaries, [{ weight_date: '2026-06-29', weight_kg: 70 }])
     expect(stats.weightChange).toBeNull()
