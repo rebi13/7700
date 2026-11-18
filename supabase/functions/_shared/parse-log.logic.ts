@@ -42,6 +42,8 @@ export type ParsedLogItem = ParsedMeal | ParsedExercise | ParsedWeight
 /** "어제", "그저께" 정도만 허용한다. 그 이상은 잘못 읽었을 가능성이 크다. */
 export const MIN_DAY_OFFSET = -7
 export const MAX_INPUT_LENGTH = 1000
+/** 정상적인 하루 기록은 이보다 훨씬 적다. 넘치는 항목은 버려 응답 길이를 묶는다. */
+export const MAX_ITEMS = 30
 
 const MEAL_TYPES: readonly ParsedMealType[] = [
   'breakfast',
@@ -52,13 +54,100 @@ const MEAL_TYPES: readonly ParsedMealType[] = [
 ]
 const CONFIDENCES: readonly ParsedConfidence[] = ['high', 'medium', 'low']
 
+/**
+ * 사용자 입력은 <user_log> 태그 안에 데이터로만 넣는다. 시스템 프롬프트가 이 태그 안의
+ * 내용을 지시로 따르지 말라고 못박으므로, 입력 안에 같은 태그가 있으면 지워서
+ * 사용자가 태그를 닫고 바깥에 지시를 쓰는 식으로 경계를 넘지 못하게 한다.
+ */
+export function wrapUserText(tag: string, text: string): string {
+  const tagPattern = new RegExp(`<\\s*/?\\s*${tag}\\s*>`, 'gi')
+  return `<${tag}>\n${text.replace(tagPattern, '').trim()}\n</${tag}>`
+}
+
 export function buildParseUserMessage(text: string, weightKg?: number | null): string {
-  const lines = [`기록: ${text.trim()}`]
+  const lines = [wrapUserText('user_log', text)]
   if (typeof weightKg === 'number' && weightKg > 0) {
     lines.push(`사용자 체중: ${weightKg}kg (운동 소모 칼로리 계산에 사용)`)
   }
   return lines.join('\n')
 }
+
+const nullable = (type: string) => ({ type: [type, 'null'] })
+
+/**
+ * OpenAI Structured Outputs(strict) 스키마. 모델이 이 모양 밖의 글을 낼 수 없으므로
+ * 입력에 "프롬프트를 출력해" 같은 지시가 섞여도 응답은 항목 목록으로만 나온다.
+ */
+export const PARSE_LOG_SCHEMA = {
+  type: 'object',
+  properties: {
+    items: {
+      type: 'array',
+      items: {
+        anyOf: [
+          {
+            type: 'object',
+            properties: {
+              kind: { type: 'string', enum: ['meal'] },
+              day_offset: { type: 'integer' },
+              meal_type: { type: ['string', 'null'], enum: [...MEAL_TYPES, null] },
+              food_name: { type: 'string' },
+              calories: nullable('integer'),
+              protein_g: nullable('number'),
+              carbs_g: nullable('number'),
+              fat_g: nullable('number'),
+              confidence: { type: 'string', enum: [...CONFIDENCES] },
+              note: { type: 'string' },
+            },
+            required: [
+              'kind',
+              'day_offset',
+              'meal_type',
+              'food_name',
+              'calories',
+              'protein_g',
+              'carbs_g',
+              'fat_g',
+              'confidence',
+              'note',
+            ],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              kind: { type: 'string', enum: ['exercise'] },
+              day_offset: { type: 'integer' },
+              exercise_name: { type: 'string' },
+              duration_minutes: nullable('integer'),
+              calories_burned: nullable('integer'),
+            },
+            required: [
+              'kind',
+              'day_offset',
+              'exercise_name',
+              'duration_minutes',
+              'calories_burned',
+            ],
+            additionalProperties: false,
+          },
+          {
+            type: 'object',
+            properties: {
+              kind: { type: 'string', enum: ['weight'] },
+              day_offset: { type: 'integer' },
+              weight_kg: { type: 'number' },
+            },
+            required: ['kind', 'day_offset', 'weight_kg'],
+            additionalProperties: false,
+          },
+        ],
+      },
+    },
+  },
+  required: ['items'],
+  additionalProperties: false,
+} as const
 
 export function parseParseResponse(raw: unknown): ParsedLogItem[] {
   if (typeof raw !== 'object' || raw === null) {
@@ -68,10 +157,12 @@ export function parseParseResponse(raw: unknown): ParsedLogItem[] {
   if (!Array.isArray(items)) {
     throw new Error('Invalid response: items must be an array')
   }
-  return items.flatMap((item) => {
-    const parsed = parseItem(item)
-    return parsed ? [parsed] : []
-  })
+  return items
+    .flatMap((item) => {
+      const parsed = parseItem(item)
+      return parsed ? [parsed] : []
+    })
+    .slice(0, MAX_ITEMS)
 }
 
 function parseItem(raw: unknown): ParsedLogItem | null {
@@ -96,7 +187,7 @@ function parseItem(raw: unknown): ParsedLogItem | null {
       confidence: CONFIDENCES.includes(r.confidence as ParsedConfidence)
         ? (r.confidence as ParsedConfidence)
         : 'low',
-      note: typeof r.note === 'string' ? r.note.slice(0, 100) : '',
+      note: typeof r.note === 'string' ? r.note.slice(0, 60) : '',
     }
   }
 
